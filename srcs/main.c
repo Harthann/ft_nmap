@@ -6,16 +6,18 @@ void print_help()
 	printf("This is help\n");
 }
 
-void init_options(void) {
-	ft_set_longopt("--help", false);
-	ft_set_longopt("--string", false);
-}
-
 int parse_arg(int ac, char **av) {
 	char c;
 
-	init_options();
-	while ((c = ft_getopt(ac, av, "h")) != -1)
+	int option_index = 0;
+	static struct s_longopt longopts[] = {
+		{"help", NO_ARG, 'h'},
+		{"string", ARG_REQ, 0},
+		{"ip", ARG_REQ, 0},
+		{0, 0, 0}
+	};
+
+	while ((c = ft_getopt(ac, av, "hi:", longopts, &option_index)) != -1)
 	{
 		switch (c)
 		{
@@ -24,10 +26,10 @@ int parse_arg(int ac, char **av) {
 				getopt_release();
 				exit(0);
 			case 'i':
-				printf("This is i arg\n");
+				printf("This is i opt with arg: %s\n", ft_optarg);
 				break ;
 			case '!':
-				printf("Found long arg\n");
+				printf("Found long opt %s with arg %s\n", av[ft_optind], ft_optarg);
 				break ;
 			case '?':
 				print_help();
@@ -35,15 +37,14 @@ int parse_arg(int ac, char **av) {
 				exit(0);
 		}
 	}
-	printf("Optind: %d\n", ft_optind);
-	printf("Arg: %s\n", av[ft_optind]);
-	getopt_release();
+	printf("Arglist:\n");
+	for (int i =0; g_arglist[i]; i++)
+		printf("%s%c", g_arglist[i], g_arglist[i + 1] ? ' ' : '\n');
 	return 0;
 }
 
 int main(int ac, char **av)
 {
-
 	if (ac < 2) {
 		print_help();
 		return 0;

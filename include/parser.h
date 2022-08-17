@@ -5,17 +5,25 @@
 #include <string.h>
 #include <stdlib.h>
 
-char		ft_getopt(int ac, char **v, const char *flags);
-void		ft_set_longopt(char *option, bool arg);
-void		getopt_release(void);
+#define ARG_REQ true
+#define NO_ARG false
 
 extern	int		ft_optind;
 extern	char	ft_optopt;
 extern	char	*ft_optarg;
+extern	char	**g_arglist;
 
 struct s_longopt {
 	char *option;
 	bool arg;
+	char shortcut;
 };
+
+
+char		ft_getopt(int ac, char **av, const char *flags, struct s_longopt *longopt, int *option_index);
+void		getopt_release(void);
+void print_args();
+
+
 
 #endif
