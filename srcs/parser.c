@@ -44,29 +44,6 @@ static	void	next_opt(char **av, int *nexti, int *nextj)
 	}
 }
 
-/* Initialize the list of long arguments */
-//void ft_set_longopt(struct s_longopt *options)
-//{
-//	static int nb_longopt = 1;
-//	void		*tmp = NULL;
-//
-//	tmp = malloc((nb_longopt + 1) * sizeof(struct s_longopt));
-//	memset(tmp, 0, (nb_longopt + 1) * sizeof(struct s_longopt));
-//	if (tmp == NULL)
-//		exit(-1);
-//	if (g_longopt == NULL)
-//		g_longopt = tmp;
-//	else {
-//		memcpy(tmp, g_longopt, nb_longopt * sizeof(struct s_longopt));
-//		free(g_longopt);
-//		g_longopt = tmp;
-//	}
-//	g_longopt[nb_longopt - 1].option = option;
-//	g_longopt[nb_longopt - 1].arg = arg;
-//	nb_longopt += 1;
-
-//}
-
 /*
 ** Go through all arguments set with ft_set_longopt
 ** If it found an argument this will setup optind and optarg
@@ -81,6 +58,7 @@ static char ft_longopt
 	for (; longopt[*i].option; (*i)++)
 		if (strncmp(av[*nexti] + 2, longopt[*i].option, strlen(av[*nexti])) == 0)
 			break ;
+
 	if (longopt[*i].option == NULL) {
 		printf("Option not found: %s\n", av[*nexti]);
 		return '?';
@@ -93,7 +71,9 @@ static char ft_longopt
 		*nexti += 1;
 	}
 	*nextj = 1;
-	if (longopt[*i].shortcut != '\0')
+	if (longopt[*i].flag != NULL)
+		*longopt[*i].flag = 1;
+	if (longopt[*i].shortcut != '\0' || longopt[*i].flag != NULL)
 		return longopt[*i].shortcut;
 	return '!';
 }
@@ -122,14 +102,6 @@ static char grow_arglist(char **av, int *nexti, int *nextj)
 	return '\0';
 }
 
-void print_args()
-{
-	int i = 0;
-
-	while (g_arglist[i]) {
-		printf("%s\n", g_arglist[i++]);
-	}
-}
 
 /*
 **	This will go through all program argument memorizing
@@ -138,15 +110,17 @@ void print_args()
 **	if not we setup either and argument in g_arglist
 **	with grow_arglist or return the actual option found
 */
-char	ft_getopt
-(int ac, char **av, const char *flags, struct s_longopt *longopt, int *option_index)
+char	ft_getopt_long
+(int ac, char **av, struct s_longopt *longopt, int *option_index)
 {
-	/* Correspond to the position inside argument list */
+/* Correspond to the position inside argument list */
 	static int nexti = 0;
 
-	/* Correspond to the position inside the argument itself */
+/* Correspond to the position inside the argument itself */
 	static int nextj = 1;
 
+/* Options index inside flags or longopts */
+	int index = -1;
 	ft_optind = nexti;
 	if (nexti >= ac)
 		return -1;
@@ -156,29 +130,49 @@ char	ft_getopt
 		return ft_longopt(av, &nexti, &nextj, option_index, longopt);
 	ft_optopt = av[nexti][nextj];
 
-	/* No longopt found, checking for normal options */
-	for (int i = 0; flags && flags[i]; i++)
+/*
+** Lookup for shorthand option in the list
+** If option doesn't require parameter simply return it
+** and set flag if possible
+** If it does require an argument continue to the next block
+*/
+	for (int i = 0; longopt && (longopt[i].option || longopt[i].shortcut); i++)
+		if (longopt[i].shortcut == ft_optopt)
+			index = i;
+
+/*
+** If index still equal to -1 this means we didn't found the option
+*/
+	if (index == -1)
+		return '?';
+
+/*
+** If the option doesn't require an argument this will return it
+** Setting up a flag if needed before
+*/
+	if (longopt[index].arg == false)
 	{
-		if (flags[i] == ft_optopt)
-		{
-			if (flags[i + 1] != ':')
-			{
-				next_opt(av, &nexti, &nextj);
-				return ft_optopt;
-			}
-			if (av[nexti][nextj + 1])
-			{
-				ft_optarg = av[nexti] + nextj + 1;
-				nexti++;
-				nextj = 1;
-				return ft_optopt;
-			}
-			ft_optarg = av[nexti + 1];
-			nexti += 2;
-			nextj = 1;
-			return ft_optopt;
-		}
+		if (longopt[index].flag != NULL)
+			*longopt[index].flag = 1;
+		next_opt(av, &nexti, &nextj);
+		return ft_optopt;
 	}
-	return '?';
+
+/*
+** Short hand option found, extracting argument
+** from either next arg or right after option
+** Ex: -i1234 -i 12344
+*/
+	if (av[nexti][nextj + 1])
+	{
+		ft_optarg = av[nexti] + nextj + 1;
+		nexti++;
+		nextj = 1;
+		return ft_optopt;
+	}
+	ft_optarg = av[nexti + 1];
+	nexti += 2;
+	nextj = 1;
+	return ft_optopt;
 }
 

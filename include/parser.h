@@ -16,11 +16,13 @@ extern	char	**g_arglist;
 struct s_longopt {
 	char *option;
 	bool arg;
+	char *flag;
 	char shortcut;
+	char *desc;
 };
 
 
-char		ft_getopt(int ac, char **av, const char *flags, struct s_longopt *longopt, int *option_index);
+char		ft_getopt_long(int ac, char **av, struct s_longopt *longopt, int *option_index);
 void		getopt_release(void);
 void print_args();
 
