@@ -51,7 +51,7 @@ static	void	next_opt(char **av, int *nexti, int *nextj)
 ** and return '?' telling main program we don't know this opt
 */
 static char ft_longopt
-(char **av, int *nexti, int *nextj, int *i, struct s_longopt *longopt)
+(char **av, int *nexti, int *nextj, int *i, struct s_optdesc *longopt)
 {
 	*i = 0;
 
@@ -111,7 +111,7 @@ static char grow_arglist(char **av, int *nexti, int *nextj)
 **	with grow_arglist or return the actual option found
 */
 char	ft_getopt_long
-(int ac, char **av, struct s_longopt *longopt, int *option_index)
+(int ac, char **av, struct s_optdesc *longopt, int *option_index)
 {
 /* Correspond to the position inside argument list */
 	static int nexti = 0;
