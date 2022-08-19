@@ -13,14 +13,16 @@
 # include <netinet/ip_icmp.h>
 
 /* Utils headers */
+# include <errno.h>
 # include <stdio.h>
 # include <stdlib.h>
 # include <stdbool.h>
 # include <string.h>
-# include <errno.h>
+# include <time.h>
 
 # include "logs.h"
 
 # define PROG_NAME "ft_nmap"
+# define VERSION "alpha 0.1"
 
 #endif
