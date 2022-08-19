@@ -73,7 +73,7 @@ all : $(NAME)
 
 $(NAME) : ${OBJ} 
 	@echo $(ECHO_FLAGS) "${vertclair}Creating ${NAME}"
-	@gcc ${FLAGS} ${OPT_FLAGS} -I include  ${OBJ} -o ${NAME}
+	@gcc ${FLAGS} ${OPT_FLAGS} -I includes/  ${OBJ} -o ${NAME}
 	@echo $(ECHO_FLAGS) "${vertclair}[$(NAME) is ready]"
 
 debug: extend_flags re
@@ -81,10 +81,10 @@ debug: extend_flags re
 extend_flags:
 	$(eval FLAGS += $(DEBUG))
 
-${OBJ_PATH}/%.o: %.c
+${OBJ_PATH}/%.o: %.c Makefile
 	@mkdir -p ${OBJ_PATH}
 	@echo $(ECHO_FLAGS) "${cyanfonce}Compiling ${notdir $(basename $@)}"
-	@gcc $(FLAGS) -c -o $@ -I include/ $<
+	@gcc $(FLAGS) -c -o $@ -I includes/ $<
 -include $(OBJ:.o=.d)
 
 
@@ -104,7 +104,6 @@ clean :
 fclean : clean
 	@echo $(ECHO_FLAGS) "${rose}Removing ${NAME}"
 	@rm -f $(NAME) ${LIBS}
-	
 
 re : fclean all
 
