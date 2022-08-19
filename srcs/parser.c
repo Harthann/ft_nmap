@@ -143,8 +143,10 @@ char	ft_getopt_long
 /*
 ** If index still equal to -1 this means we didn't found the option
 */
-	if (index == -1)
+	if (index == -1) {
+		printf("Option not found: -%c\n", av[nexti][nextj]);
 		return '?';
+	}
 
 /*
 ** If the option doesn't require an argument this will return it
