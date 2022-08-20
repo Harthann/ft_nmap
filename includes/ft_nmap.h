@@ -13,6 +13,9 @@
 # include <netinet/udp.h>
 # include <netinet/ip_icmp.h>
 
+# include <net/if.h>
+# include <ifaddrs.h>
+
 /* Utils headers */
 # include <errno.h>
 # include <stdio.h>

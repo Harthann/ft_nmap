@@ -4,6 +4,8 @@
 char f_flood = 0;
 char *prog_name = NULL;
 
+int			get_ipv4_addr(void);
+
 unsigned short checksum(void *addr, size_t count)
 {
 	unsigned short *ptr;
@@ -19,7 +21,7 @@ unsigned short checksum(void *addr, size_t count)
 	return (~sum);
 }
 
-struct tcp_pseudohdr {
+struct tcp4_pseudohdr {
 	uint32_t		src;
 	uint32_t		dst;
 	uint8_t			zero;
@@ -29,7 +31,7 @@ struct tcp_pseudohdr {
 
 uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len)
 {
-	struct tcp_pseudohdr	tcpphdr = {
+	struct tcp4_pseudohdr	tcpphdr = {
 		.src = iphdr->saddr,
 		.dst = iphdr->daddr,
 		.zero = 0,
@@ -38,10 +40,10 @@ uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data
 	};
 	uint8_t					buf[65536];
 
-	memcpy(buf, &tcpphdr, sizeof(struct tcp_pseudohdr));
-	memcpy(buf + sizeof(struct tcp_pseudohdr), tcphdr, sizeof(struct tcphdr));
-	memcpy(buf + sizeof(struct tcp_pseudohdr) + sizeof(struct tcphdr), data, data_len);
-	return (checksum(buf, sizeof(struct tcp_pseudohdr) + sizeof(struct tcphdr) + data_len));
+	memcpy(buf, &tcpphdr, sizeof(struct tcp4_pseudohdr));
+	memcpy(buf + sizeof(struct tcp4_pseudohdr), tcphdr, sizeof(struct tcphdr));
+	memcpy(buf + sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr), data, data_len);
+	return (checksum(buf, sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr) + data_len));
 }
 
 int			poc_tcp()
@@ -56,6 +58,7 @@ int			poc_tcp()
 	}
 	int on = 1;
 	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
+
 	/* struct tcphdr {
 	__be16	source;
 	__be16	dest;
@@ -78,7 +81,7 @@ int			poc_tcp()
 	uint32_t	src_addr;
 	uint32_t	dst_addr;
 
-	inet_pton(AF_INET, "192.168.175.128", &src_addr);
+	src_addr = get_ipv4_addr();
 	inet_pton(AF_INET, "192.168.175.1", &dst_addr);
 	struct sockaddr_in sockaddr;
 	sockaddr.sin_addr.s_addr = dst_addr;
@@ -124,6 +127,28 @@ int			poc_tcp()
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
+}
+
+int			get_ipv4_addr(void)
+{
+	int					addr;
+	struct sockaddr_in	*paddr;
+	struct ifaddrs		*ifap, *tmp;
+
+	getifaddrs(&ifap);
+	tmp = ifap;
+	while (tmp)
+	{
+		if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET && !(tmp->ifa_flags & IFF_LOOPBACK))
+		{
+			paddr = (struct sockaddr_in *)tmp->ifa_addr;
+			inet_pton(AF_INET, inet_ntoa(paddr->sin_addr), &addr);
+			break ;
+		}
+		tmp = tmp->ifa_next;
+	}
+	freeifaddrs(ifap);
+	return (addr);
 }
 
 int			nmap(void)
