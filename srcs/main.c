@@ -37,10 +37,13 @@ uint16_t	tcp4_checksum(uint32_t src, uint32_t dst, struct tcphdr *tcphdr, uint8_
 	memset(buff, 0, sizeof(buff));
 	memcpy(&tcpphdr->tcphdr, tcphdr, sizeof(struct tcphdr));
 	memcpy(buff + sizeof(struct tcp_pseudohdr), data, data_len);
-	tcpphdr->src = htons(src);
-	tcpphdr->dst = htons(dst);
+	tcpphdr->src = src;
+	tcpphdr->dst = dst;
 	tcpphdr->protocol = IPPROTO_TCP;
 	tcpphdr->tcp_len = sizeof(struct tcphdr) + data_len;
+	for (size_t i = 0; i < sizeof(buff); i++)
+		printf("%02x ", buff[i]);
+	printf("\n");
 	return (checksum(buff, sizeof(buff)));
 }
 
