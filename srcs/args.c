@@ -48,7 +48,6 @@ int			parse_arg(int ac, char **av) {
 		print_help(options_descriptor);
 		return EXIT_FAILURE;
 	}
-	printf("Arglist:\n");
 	for (int i =0; g_arglist[i]; i++)
 		printf("%s%c", g_arglist[i], g_arglist[i + 1] ? ' ' : '\n');
 	if (f_flood)
