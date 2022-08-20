@@ -28,19 +28,19 @@ struct tcp_pseudohdr {
 	struct tcphdr	tcphdr;
 };
 
-uint16_t	tcp4_checksum(uint32_t src, uint32_t dst, struct tcphdr *tcphdr, uint8_t *data, int data_size)
+uint16_t	tcp4_checksum(uint32_t src, uint32_t dst, struct tcphdr *tcphdr, uint8_t *data, int data_len)
 {
-	uint8_t					buff[sizeof(struct tcp_pseudohdr) + data_size];
+	uint8_t					buff[sizeof(struct tcp_pseudohdr) + data_len];
 	struct tcp_pseudohdr	*tcpphdr;
 
 	tcpphdr = (void *)buff;
 	memset(buff, 0, sizeof(buff));
 	memcpy(&tcpphdr->tcphdr, tcphdr, sizeof(struct tcphdr));
-	memcpy(buff + sizeof(struct tcp_pseudohdr), data, data_size);
-	tcpphdr->src = src;
-	tcpphdr->dst = dst;
+	memcpy(buff + sizeof(struct tcp_pseudohdr), data, data_len);
+	tcpphdr->src = htons(src);
+	tcpphdr->dst = htons(dst);
 	tcpphdr->protocol = IPPROTO_TCP;
-	tcpphdr->tcp_len = sizeof(struct tcphdr) + data_size;
+	tcpphdr->tcp_len = sizeof(struct tcphdr) + data_len;
 	return (checksum(buff, sizeof(buff)));
 }
 
@@ -54,6 +54,8 @@ int			poc_tcp()
 		fprintf(stderr, "%s: socket: %s\n", prog_name, strerror(errno));
 		return EXIT_FAILURE;
 	}
+	int on = 1;
+	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
 	/* struct tcphdr {
 	__be16	source;
 	__be16	dest;
@@ -83,12 +85,19 @@ int			poc_tcp()
 	sockaddr.sin_family = AF_INET;
 	sockaddr.sin_port = 0;
 	void				*buf;
-	int					len = sizeof(struct iphdr) + sizeof(struct tcphdr) + 8;
+	int					data_len = 8;
+	int					len = sizeof(struct iphdr) + sizeof(struct tcphdr) + data_len;
 
 	buf = malloc(len);
-	struct iphdr		*iphdr = buf;
-	struct tcphdr		*tcphdr = buf + sizeof(struct iphdr);
+	struct iphdr		*iphdr;
+	struct tcphdr		*tcphdr;
+	void				*data;
 
+	iphdr = buf;
+	tcphdr = buf + sizeof(struct iphdr);
+	data = buf + sizeof(struct iphdr) + sizeof(struct iphdr);
+
+	printf("len: %d\n", len);
 	memset(iphdr, 0, sizeof(struct iphdr));
 	iphdr->version = 4; // ipv4
 	iphdr->ihl = sizeof(struct iphdr) / 4; // 5 = 20 / 32 bits
@@ -105,12 +114,13 @@ int			poc_tcp()
 	tcphdr->source = htons(22);
 	tcphdr->dest = htons(33450);
 	tcphdr->syn = 1;
-	tcphdr->window = 1024;
-	memset(buf + sizeof(struct tcphdr) + sizeof(struct iphdr), 42, 8);
-	tcphdr->check = tcp4_checksum(src_addr, dst_addr, tcphdr, buf + sizeof(struct tcphdr) + sizeof(struct iphdr), 8);
+	tcphdr->window = htons(1024);
+	tcphdr->doff = (uint8_t)(sizeof(struct tcphdr) / sizeof(uint32_t)); // size in 32 bit word
+	memset(buf + sizeof(struct tcphdr) + sizeof(struct iphdr), 42, data_len);
+	tcphdr->check = tcp4_checksum(src_addr, dst_addr, tcphdr, data, data_len);
 	if (sendto(socks.sockfd_tcp, buf, len, 0, (struct sockaddr *)&sockaddr, sizeof(struct sockaddr)) < 0)
 	{
-		fprintf(stderr, "%s: socket: %s\n", prog_name, strerror(errno));
+		fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
@@ -125,7 +135,7 @@ int			nmap(void)
 	gettimeofday(&tv, NULL);
 	t = tv.tv_sec;
 	info = localtime(&t);
-	printf("Starting %s %s at %d-%02d-%02d %02d:%02d EDT\n", PROG_NAME, VERSION,
+	printf("Starting %s %s at %d-%02d-%02d %02d:%02d CEST\n", PROG_NAME, VERSION,
 info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min);
 	poc_tcp();
 	return EXIT_SUCCESS;
