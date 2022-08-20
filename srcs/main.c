@@ -25,26 +25,23 @@ struct tcp_pseudohdr {
 	uint8_t			zero;
 	uint8_t			protocol;
 	uint16_t		tcp_len;
-	struct tcphdr	tcphdr;
 };
 
-uint16_t	tcp4_checksum(uint32_t src, uint32_t dst, struct tcphdr *tcphdr, uint8_t *data, int data_len)
+uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len)
 {
-	uint8_t					buff[sizeof(struct tcp_pseudohdr) + data_len];
-	struct tcp_pseudohdr	*tcpphdr;
+	struct tcp_pseudohdr	tcpphdr = {
+		.src = iphdr->saddr,
+		.dst = iphdr->daddr,
+		.zero = 0,
+		.protocol = IPPROTO_TCP,
+		.tcp_len = htons(sizeof(struct tcphdr) + data_len)
+	};
+	uint8_t					buf[65536];
 
-	tcpphdr = (void *)buff;
-	memset(buff, 0, sizeof(buff));
-	memcpy(&tcpphdr->tcphdr, tcphdr, sizeof(struct tcphdr));
-	memcpy(buff + sizeof(struct tcp_pseudohdr), data, data_len);
-	tcpphdr->src = src;
-	tcpphdr->dst = dst;
-	tcpphdr->protocol = IPPROTO_TCP;
-	tcpphdr->tcp_len = sizeof(struct tcphdr) + data_len;
-	for (size_t i = 0; i < sizeof(buff); i++)
-		printf("%02x ", buff[i]);
-	printf("\n");
-	return (checksum(buff, sizeof(buff)));
+	memcpy(buf, &tcpphdr, sizeof(struct tcp_pseudohdr));
+	memcpy(buf + sizeof(struct tcp_pseudohdr), tcphdr, sizeof(struct tcphdr));
+	memcpy(buf + sizeof(struct tcp_pseudohdr) + sizeof(struct tcphdr), data, data_len);
+	return (checksum(buf, sizeof(struct tcp_pseudohdr) + sizeof(struct tcphdr) + data_len));
 }
 
 int			poc_tcp()
@@ -111,7 +108,7 @@ int			poc_tcp()
 	iphdr->ttl = 111;
 	iphdr->protocol = IPPROTO_TCP;
 	iphdr->check = 0; // filled by kernel
-	iphdr->saddr = INADDR_ANY;
+	iphdr->saddr = src_addr;
 	iphdr->daddr = dst_addr;
 	memset(tcphdr, 0, sizeof(struct tcphdr));
 	tcphdr->source = htons(22);
@@ -120,7 +117,7 @@ int			poc_tcp()
 	tcphdr->window = htons(1024);
 	tcphdr->doff = (uint8_t)(sizeof(struct tcphdr) / sizeof(uint32_t)); // size in 32 bit word
 	memset(buf + sizeof(struct tcphdr) + sizeof(struct iphdr), 42, data_len);
-	tcphdr->check = tcp4_checksum(src_addr, dst_addr, tcphdr, data, data_len);
+	tcphdr->check = tcp4_checksum(iphdr, tcphdr, data, data_len);
 	if (sendto(socks.sockfd_tcp, buf, len, 0, (struct sockaddr *)&sockaddr, sizeof(struct sockaddr)) < 0)
 	{
 		fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
