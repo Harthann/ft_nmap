@@ -46,7 +46,7 @@ uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data
 	return (checksum(buf, sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr) + data_len));
 }
 
-int			poc_tcp()
+int			poc_tcp(char *target)
 {
 	sockfd_t			socks;
 
@@ -58,31 +58,11 @@ int			poc_tcp()
 	}
 	int on = 1;
 	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
-
-	/* struct tcphdr {
-	__be16	source;
-	__be16	dest;
-	__be32	seq;
-	__be32	ack_seq;
-	__u16	res1:4,
-		doff:4,
-		fin:1,
-		syn:1,
-		rst:1,
-		psh:1,
-		ack:1,
-		urg:1,
-		ece:1,
-		cwr:1;
-	__be16	window;
-	__sum16	check;
-	__be16	urg_ptr;
-	} */
 	uint32_t	src_addr;
 	uint32_t	dst_addr;
 
 	src_addr = get_ipv4_addr();
-	inet_pton(AF_INET, "192.168.175.1", &dst_addr);
+	inet_pton(AF_INET, target, &dst_addr);
 	struct sockaddr_in sockaddr;
 	sockaddr.sin_addr.s_addr = dst_addr;
 	sockaddr.sin_family = AF_INET;
@@ -100,7 +80,6 @@ int			poc_tcp()
 	tcphdr = buf + sizeof(struct iphdr);
 	data = buf + sizeof(struct iphdr) + sizeof(struct iphdr);
 
-	printf("len: %d\n", len);
 	memset(iphdr, 0, sizeof(struct iphdr));
 	iphdr->version = 4; // ipv4
 	iphdr->ihl = sizeof(struct iphdr) / 4; // 5 = 20 / 32 bits
@@ -151,7 +130,43 @@ int			get_ipv4_addr(void)
 	return (addr);
 }
 
-int			nmap(void)
+char		*resolve_hostname(char *hostname)
+{
+	struct addrinfo *res;
+	struct addrinfo hints;
+	char			*buffer;
+	char			*addr;
+
+	addr = NULL;
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = AF_INET;
+	if (!getaddrinfo(hostname, NULL, &hints, &res))
+	{
+		addr = malloc(MAX_ADDR_SIZE);
+		if (!addr)
+			return (NULL);
+		buffer = inet_ntoa(((struct sockaddr_in *)res->ai_addr)->sin_addr);
+		strcpy(addr, buffer);
+		freeaddrinfo(res);
+	}
+	return (addr);
+}
+
+void		nmap(char *target)
+{
+	char			*ip_addr;
+
+	ip_addr = resolve_hostname(target);
+	if (!ip_addr)
+	{
+		fprintf(stderr, "%s: Failed to resolve \"%s\".\n", prog_name, target);
+		return ;
+	}
+	poc_tcp(ip_addr);
+	free(ip_addr);
+}
+
+void		signature(void)
 {
 	struct tm		*info;
 	struct timeval	tv;
@@ -162,14 +177,10 @@ int			nmap(void)
 	info = localtime(&t);
 	printf("Starting %s %s at %d-%02d-%02d %02d:%02d CEST\n", PROG_NAME, VERSION,
 info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min);
-	poc_tcp();
-	return EXIT_SUCCESS;
 }
 
 int			main(int ac, char **av)
 {
-	int		ret;
-
 	prog_name = strdup((*av[0]) ? av[0] : PROG_NAME);
 	if (!prog_name)
 	{
@@ -181,7 +192,9 @@ int			main(int ac, char **av)
 		free(prog_name);
 		return EXIT_FAILURE;
 	}
-	ret = nmap();
+	signature();
+	for (size_t i = 0; g_arglist[i]; i++)
+		nmap(g_arglist[i]);
 	free(prog_name);
-	return ret;
+	return EXIT_SUCCESS;
 }

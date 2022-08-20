@@ -26,8 +26,10 @@
 
 # include "logs.h"
 
-# define PROG_NAME "ft_nmap"
-# define VERSION "alpha 0.1"
+# define PROG_NAME		"ft_nmap"
+# define VERSION		"alpha 0.1"
+
+# define MAX_ADDR_SIZE	64
 
 typedef struct	sockfd_s {
 	int			sockfd_tcp;
