@@ -46,6 +46,38 @@ uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data
 	return (checksum(buf, sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr) + data_len));
 }
 
+# define DATA_LEN	20
+# define MAX_TTL	255
+
+int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, int dst_port)
+{
+	void			*buffer;
+	void			*data;
+	struct tcphdr	*tcphdr;
+
+	iphdr->tot_len = sizeof(struct iphdr) + sizeof(struct tcphdr) + DATA_LEN;
+	buffer = calloc(iphdr->tot_len, sizeof(uint8_t));
+	if (!buffer)
+		return EXIT_FAILURE;
+	tcphdr = buffer + sizeof(struct iphdr);
+	data = buffer + sizeof(struct iphdr) + sizeof(struct tcphdr);
+	memcpy(buffer, iphdr, sizeof(struct iphdr));
+	tcphdr->source = htons(dst_port);
+	tcphdr->dest = htons(33450);
+	tcphdr->syn = 1;
+	tcphdr->window = htons(1024);
+	tcphdr->doff = (uint8_t)(sizeof(struct tcphdr) / sizeof(uint32_t)); // size in 32 bit word
+	memset(data, 42, DATA_LEN);
+	tcphdr->check = tcp4_checksum(iphdr, tcphdr, data, DATA_LEN);
+	if (sendto(sockfd, buffer, iphdr->tot_len, 0, (struct sockaddr *)sockaddr, sizeof(struct sockaddr)) < 0)
+	{
+		fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
+		return EXIT_FAILURE;
+	}
+	free(buffer);
+	return EXIT_SUCCESS;
+}
+
 int			poc_tcp(char *target)
 {
 	sockfd_t			socks;
@@ -67,44 +99,21 @@ int			poc_tcp(char *target)
 	sockaddr.sin_addr.s_addr = dst_addr;
 	sockaddr.sin_family = AF_INET;
 	sockaddr.sin_port = 0;
-	void				*buf;
-	int					data_len = 8;
-	int					len = sizeof(struct iphdr) + sizeof(struct tcphdr) + data_len;
-
-	buf = malloc(len);
-	struct iphdr		*iphdr;
-	struct tcphdr		*tcphdr;
-	void				*data;
-
-	iphdr = buf;
-	tcphdr = buf + sizeof(struct iphdr);
-	data = buf + sizeof(struct iphdr) + sizeof(struct iphdr);
-
-	memset(iphdr, 0, sizeof(struct iphdr));
-	iphdr->version = 4; // ipv4
-	iphdr->ihl = sizeof(struct iphdr) / 4; // 5 = 20 / 32 bits
-	iphdr->tos = 0;
-	iphdr->tot_len = len;
-	iphdr->id = 0;
-	iphdr->frag_off = 0;
-	iphdr->ttl = 111;
-	iphdr->protocol = IPPROTO_TCP;
-	iphdr->check = 0; // filled by kernel
-	iphdr->saddr = src_addr;
-	iphdr->daddr = dst_addr;
-	memset(tcphdr, 0, sizeof(struct tcphdr));
-	tcphdr->source = htons(22);
-	tcphdr->dest = htons(33450);
-	tcphdr->syn = 1;
-	tcphdr->window = htons(1024);
-	tcphdr->doff = (uint8_t)(sizeof(struct tcphdr) / sizeof(uint32_t)); // size in 32 bit word
-	memset(buf + sizeof(struct tcphdr) + sizeof(struct iphdr), 42, data_len);
-	tcphdr->check = tcp4_checksum(iphdr, tcphdr, data, data_len);
-	if (sendto(socks.sockfd_tcp, buf, len, 0, (struct sockaddr *)&sockaddr, sizeof(struct sockaddr)) < 0)
-	{
-		fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
-		return EXIT_FAILURE;
-	}
+	struct iphdr	iphdr = {
+		.version = 4,
+		.ihl = sizeof(struct iphdr) / sizeof(uint32_t),
+		.tos = 0,
+		.tot_len = 0,
+		.id = 0,
+		.frag_off = 0,
+		.ttl = 255,
+		.protocol = IPPROTO_TCP,
+		.check = 0, // filled by kernel
+		.saddr = src_addr,
+		.daddr = dst_addr
+	};
+	if (send_tcp4(socks.sockfd_tcp, &sockaddr, &iphdr, 22) < 0)
+		fprintf(stderr, "problem\n");
 	return EXIT_SUCCESS;
 }
 
