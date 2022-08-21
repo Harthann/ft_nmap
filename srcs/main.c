@@ -66,8 +66,13 @@ int			recv_tcp4(int sockfd, struct iphdr *iphdr)
 		return EXIT_FAILURE;
 	tcphdr = buffer + sizeof(struct iphdr);
 	iphdr_rcv = buffer;
-	if (iphdr_rcv->saddr == iphdr->daddr &&  tcphdr->syn && tcphdr->ack)
+	if (iphdr_rcv->saddr == iphdr->daddr && tcphdr->syn && tcphdr->ack)
 		printf("%d/tcp\n", ntohs(tcphdr->source));
+	else if (iphdr_rcv->saddr != iphdr->daddr)
+	{
+		free(buffer);
+		return EXIT_FAILURE;
+	}
 	free(buffer);
 	return EXIT_SUCCESS;
 }
@@ -140,7 +145,8 @@ int			poc_tcp(char *target)
 			fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 		else if (ret == EXIT_FAILURE)
 			fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
-		recv_tcp4(socks.sockfd_tcp, &iphdr);
+		while (recv_tcp4(socks.sockfd_tcp, &iphdr) == EXIT_FAILURE)
+			;
 	}
 	return EXIT_SUCCESS;
 }
