@@ -80,8 +80,6 @@ struct scan_s {
 #define CWR 0x01
 #endif
 
-#define SYNACK (SYN | ACK)
-
 int			get_ipv4_addr(void);
 
 struct scan_s *new_scanentry(struct scan_s *head, void *buffer);

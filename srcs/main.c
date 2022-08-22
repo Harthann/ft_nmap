@@ -31,7 +31,7 @@ int			recv_tcp4(int sockfd, struct scan_s *scanlist)
 */
 	tcphdr = buffer + sizeof(struct iphdr);
 	if (find_scan(buffer, scanlist)) {
-		if (TCP_FLAG(tcphdr) == SYNACK)
+		if (TCP_FLAG(tcphdr) == (SYN | ACK))
 		{
 			struct servent* servi = getservbyport(tcphdr->source, "tcp");
 			if (servi)
@@ -87,47 +87,13 @@ int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, i
 	return EXIT_SUCCESS;
 }
 
-int			poc_tcp(char *target)
+int			scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr)
 {
-	sockfd_t			socks;
 	struct scan_s		*scanlist = NULL;
-
-	socks.sockfd_tcp = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
-	if (socks.sockfd_tcp < 0)
-	{
-		fprintf(stderr, "%s: socket: %s\n", prog_name, strerror(errno));
-		return EXIT_FAILURE;
-	}
-	int on = 1;
-	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
-
-	uint32_t	src_addr;
-	uint32_t	dst_addr;
-
-	src_addr = get_ipv4_addr();
-	inet_pton(AF_INET, target, &dst_addr);
-	struct sockaddr_in sockaddr;
-	sockaddr.sin_addr.s_addr = dst_addr;
-	sockaddr.sin_family = AF_INET;
-	sockaddr.sin_port = 0;
-	struct iphdr	iphdr = {
-		.version = 4,
-		.ihl = sizeof(struct iphdr) / sizeof(uint32_t),
-		.tos = 0,
-		.tot_len = 0,
-		.id = 0,
-		.frag_off = 0,
-		.ttl = 255,
-		.protocol = IPPROTO_TCP,
-		.check = 0, // filled by kernel
-		.saddr = src_addr,
-		.daddr = dst_addr
-	};
-	
 	struct pollfd		fds[1];
 
 	memset(fds, 0, sizeof(fds));
-	fds[0].fd = socks.sockfd_tcp;
+	fds[0].fd = sockfd;
 	fds[0].events = POLLIN | POLLOUT | POLLERR;
 
 	int i = 1;
@@ -137,10 +103,10 @@ int			poc_tcp(char *target)
 		if (res > 0)
 		{
 			if (fds[0].revents & POLLIN)
-				recv_tcp4(socks.sockfd_tcp, scanlist);
+				recv_tcp4(sockfd, scanlist);
 			else if (fds[0].revents & POLLOUT && i <= 1024)
 			{
-				int ret = send_tcp4(socks.sockfd_tcp, &sockaddr, &iphdr, i++, &scanlist, SYN);
+				int ret = send_tcp4(sockfd, sockaddr, iphdr, i++, &scanlist, SYN);
 				if (ret == -ENOMEM)
 					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 				else if (ret == EXIT_FAILURE)
@@ -203,16 +169,46 @@ char		*resolve_hostname(char *hostname)
 
 void		nmap(char *target)
 {
-	char			*ip_addr;
+	sockfd_t		socks;
+	uint32_t		dst_addr;
+	char			*target_ip;
 
-	ip_addr = resolve_hostname(target);
-	if (!ip_addr)
+	target_ip = resolve_hostname(target);
+	if (!target_ip)
 	{
 		fprintf(stderr, "%s: Failed to resolve \"%s\".\n", prog_name, target);
 		return ;
 	}
-	poc_tcp(ip_addr);
-	free(ip_addr);
+	inet_pton(AF_INET, target_ip, &dst_addr);
+	free(target_ip);
+	socks.sockfd_tcp = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
+	if (socks.sockfd_tcp < 0)
+	{
+		fprintf(stderr, "%s: socket: %s\n", prog_name, strerror(errno));
+		return ;
+	}
+	int on = 1;
+	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
+
+	struct sockaddr_in sockaddr;
+	sockaddr.sin_addr.s_addr = dst_addr;
+	sockaddr.sin_family = AF_INET;
+	sockaddr.sin_port = 0;
+	struct iphdr	iphdr = {
+		.version = 4,
+		.ihl = sizeof(struct iphdr) / sizeof(uint32_t),
+		.tos = 0,
+		.tot_len = 0,
+		.id = 0,
+		.frag_off = 0,
+		.ttl = 255,
+		.protocol = IPPROTO_TCP,
+		.check = 0, // filled by kernel
+		.saddr = get_ipv4_addr(), // TODO: if not ip ?
+		.daddr = dst_addr
+	};
+	printf("SCAN SYN\n");
+	scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr);
 }
 
 void		signature(void)
