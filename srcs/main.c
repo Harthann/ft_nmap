@@ -215,6 +215,11 @@ void		nmap(char *target)
 		.daddr = dst_addr
 	};
 	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, 1, 1024);
+	if (!ports)
+	{
+		free(target_ip);
+		return ;
+	}
 	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
 	printf("PORT      STATUS            SERVICE\n");
 	for (uint32_t i = 0; i < 1024; i++)
