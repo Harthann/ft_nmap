@@ -227,7 +227,6 @@ void		nmap(char *target)
 	printf("PORT      STATUS            SERVICE\n");
 	for (uint32_t i = 0; i < 1024; i++)
 	{
-		printf("%d\n", i);
 		if (ports[i].status & STATUS_OPEN)
 		{
 			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
