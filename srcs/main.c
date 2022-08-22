@@ -1,44 +1,47 @@
 #include "ft_nmap.h"
 #include "args.h"
 
-char f_flood = 0;
 char *prog_name = NULL;
 
-int			recv_tcp4(int sockfd, struct scan_s *iphdr)
+int			recv_tcp4(int sockfd, struct scan_s *scanlist)
 {
-	struct	sockaddr_in		addr;
-	unsigned int			addr_len;
+//	struct	sockaddr_in		addr;
+//	unsigned int			addr_len = sizeof(struct sockaddr);
 	void					*buffer;
 	int						len;
 	struct tcphdr			*tcphdr;
-	struct iphdr			*iphdr_rcv;
+//	struct iphdr			*iphdr_rcv;
 
 	len = sizeof(struct iphdr) + sizeof(struct tcphdr) + DATA_LEN;
 	buffer = malloc(len);
 	if (!buffer)
 		return ENOMEM;
 
-	if (recvfrom(sockfd, buffer, len, 0, (struct sockaddr *)&addr, &addr_len) < 0)
+	if (recvfrom(sockfd, buffer, len, 0, NULL, NULL) < 0)
 	{
+		free(buffer);
 		fprintf(stderr, "recvfrom: %s\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
 
+//	iphdr_rcv = buffer;
+
+/*
+** Perform a check if the response correspond to one of our scan
+** If so check the responses flag and print scan result
+*/
 	tcphdr = buffer + sizeof(struct iphdr);
-	iphdr_rcv = buffer;
-	if (iphdr_rcv->saddr == iphdr->daddr && tcphdr->syn && tcphdr->ack)
-		printf("%d/tcp\n", ntohs(tcphdr->source));
-	else if (iphdr_rcv->saddr != iphdr->daddr)
-	{
-		free(buffer);
-		return EXIT_FAILURE;
+	if (find_scan(buffer, scanlist)) {
+		if (TCP_FLAG(tcphdr) == SYNACK)
+			printf("%d/tcp\n", htons(tcphdr->source));
+		return EXIT_SUCCESS;
 	}
 
 	free(buffer);
 	return EXIT_SUCCESS;
 }
 
-int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, int dst_port, struct scan_s **scanlist)
+int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, int dst_port, struct scan_s **scanlist, uint16_t flag)
 {
 	void			*buffer;
 	void			*data;
@@ -57,6 +60,7 @@ int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, i
 	tcphdr->source = htons(33450);
 	tcphdr->dest = htons(dst_port);
 	tcphdr->syn = 1;
+	SET_TCPFLAG(tcphdr, flag);
 	tcphdr->window = htons(1024);
 	tcphdr->doff = (uint8_t)(sizeof(struct tcphdr) / sizeof(uint32_t)); // size in 32 bit word
 	tcphdr->check = tcp4_checksum(iphdr, tcphdr, data, DATA_LEN);
@@ -104,7 +108,7 @@ int			poc_tcp(char *target)
 		.saddr = src_addr,
 		.daddr = dst_addr
 	};
-
+	
 	struct pollfd		fds[1];
 
 	memset(fds, 0, sizeof(fds));
@@ -121,7 +125,7 @@ int			poc_tcp(char *target)
 				recv_tcp4(socks.sockfd_tcp, scanlist);
 			else if (fds[0].revents & POLLOUT && i <= 1024)
 			{
-				int ret = send_tcp4(socks.sockfd_tcp, &sockaddr, &iphdr, i++, &scanlist);
+				int ret = send_tcp4(socks.sockfd_tcp, &sockaddr, &iphdr, i++, &scanlist, SYN);
 				if (ret == ENOMEM)
 					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 				else if (ret == EXIT_FAILURE)
@@ -131,8 +135,6 @@ int			poc_tcp(char *target)
 				fds[0].events = POLLIN | POLLERR;
 		}
 		else if (!res)
-			break ;
-		if (i == 10)
 			break ;
 	}
 
@@ -211,6 +213,22 @@ void		signature(void)
 info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min);
 }
 
+void		signal_handler(int signum)
+{
+	printf("\b\b  \b\b\n");
+	exit(128 + signum);
+}
+
+void		handling_signals()
+{
+	struct sigaction sa;
+
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = &signal_handler;
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGQUIT, &sa, NULL);
+}
+
 int			main(int ac, char **av)
 {
 	prog_name = strdup((*av[0]) ? av[0] : PROG_NAME);
@@ -225,6 +243,7 @@ int			main(int ac, char **av)
 		return EXIT_FAILURE;
 	}
 	signature();
+	handling_signals();
 	for (size_t i = 0; g_arglist[i]; i++)
 		nmap(g_arglist[i]);
 	free(prog_name);

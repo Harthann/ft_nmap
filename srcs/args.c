@@ -2,8 +2,6 @@
 #include "args.h"
 #include "ft_nmap.h"
 
-extern char f_flood;
-
 struct s_optdesc options_descriptor[] = {
 	{"help",	NO_ARG, 0, 'h', DESC_HELP},
 	{"ip",		ARGREQ, 0, 0, DESC_IP},
@@ -50,7 +48,5 @@ int			parse_arg(int ac, char **av) {
 	}
 	for (int i =0; g_arglist[i]; i++)
 		printf("%s%c", g_arglist[i], g_arglist[i + 1] ? ' ' : '\n');
-	if (f_flood)
-		printf("Flood is activated\n");
 	return 0;
 }
