@@ -63,7 +63,10 @@ int			recv_tcp4(int sockfd, struct iphdr *iphdr)
 	if (!buffer)
 		return ENOMEM;
 	if (recvfrom(sockfd, buffer, len, 0, (struct sockaddr *)&addr, &addr_len) < 0)
+	{
+		fprintf(stderr, "recvfrom: %s\n", strerror(errno));
 		return EXIT_FAILURE;
+	}
 	tcphdr = buffer + sizeof(struct iphdr);
 	iphdr_rcv = buffer;
 	if (iphdr_rcv->saddr == iphdr->daddr && tcphdr->syn && tcphdr->ack)
@@ -115,6 +118,12 @@ int			poc_tcp(char *target)
 	}
 	int on = 1;
 	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
+//	struct timeval tv = {
+//		.tv_sec = 2,
+//		.tv_usec = 0
+//	};
+//	setsockopt(socks.sockfd_tcp, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
 	uint32_t	src_addr;
 	uint32_t	dst_addr;
 
@@ -137,6 +146,7 @@ int			poc_tcp(char *target)
 		.saddr = src_addr,
 		.daddr = dst_addr
 	};
+	/*
 	int ret;
 	for (size_t i = 1; i <= 1024; i++)
 	{
@@ -148,6 +158,38 @@ int			poc_tcp(char *target)
 		while (recv_tcp4(socks.sockfd_tcp, &iphdr) == EXIT_FAILURE)
 			;
 	}
+	*/
+// ===
+	struct pollfd		fds[1];
+
+	memset(fds, 0, sizeof(fds));
+	fds[0].fd = socks.sockfd_tcp;
+	fds[0].events = POLLIN | POLLOUT | POLLERR;
+
+	int i = 1;
+	while (true)
+	{
+		int res = poll(fds, 1, 2000);
+		if (res > 0)
+		{
+			if (fds[0].revents & POLLIN)
+				recv_tcp4(socks.sockfd_tcp, &iphdr);
+			else if (fds[0].revents & POLLOUT && i <= 1024)
+			{
+				int ret = send_tcp4(socks.sockfd_tcp, &sockaddr, &iphdr, i++);
+				if (ret == ENOMEM)
+					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
+				else if (ret == EXIT_FAILURE)
+					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
+			}
+			else if (i > 1024 && fds[0].revents & POLLOUT)
+				fds[0].events = POLLIN | POLLERR;
+		}
+		else if (!res)
+			break ;
+	}
+
+// ===
 	return EXIT_SUCCESS;
 }
 

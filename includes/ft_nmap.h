@@ -16,6 +16,8 @@
 # include <net/if.h>
 # include <ifaddrs.h>
 
+# include <poll.h>
+
 /* Utils headers */
 # include <errno.h>
 # include <stdio.h>
