@@ -43,11 +43,19 @@ typedef struct	sockfd_s {
 	int			sockfd_tcp;
 }				sockfd_t;
 
+# define		STATUS_OPEN			0x01
+# define		STATUS_CLOSE		0x00
+# define		STATUS_FILTERED		0x02
+# define		STATUS_UNFILTERED	0x00
+
+typedef struct	s_port_status {
+	int			port;
+	uint8_t		status;
+}				t_port_status;
 
 struct scan_s {
 	struct iphdr	*iphdr;
 	struct tcphdr	*tcphdr;
-
 	struct scan_s	*next;
 };
 

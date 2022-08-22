@@ -3,7 +3,7 @@
 
 char *prog_name = NULL;
 
-int			recv_tcp4(int sockfd, struct scan_s *scanlist)
+int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb_port)
 {
 	void					*buffer;
 	int						len;
@@ -33,13 +33,12 @@ int			recv_tcp4(int sockfd, struct scan_s *scanlist)
 	if (find_scan(buffer, scanlist)) {
 		if (TCP_FLAG(tcphdr) == (SYN | ACK))
 		{
-			struct servent* servi = getservbyport(tcphdr->source, "tcp");
-			if (servi)
-				printf("%d/tcp %s\n", htons(tcphdr->source), servi->s_name);
-			else
-				printf("%d/tcp unknown\n", htons(tcphdr->source));
+			for (int i = 0; i < nb_port; i++)
+			{
+				if (ports[i].port == htons(tcphdr->source))
+					ports[i].status = STATUS_OPEN;
+			}
 		}
-		return EXIT_SUCCESS;
 	}
 	free(buffer);
 	return EXIT_SUCCESS;
@@ -87,24 +86,32 @@ int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, i
 	return EXIT_SUCCESS;
 }
 
-int			scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr)
+int			scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, uint32_t port_start, uint32_t port_end)
 {
 	struct scan_s		*scanlist = NULL;
 	struct pollfd		fds[1];
+	uint32_t			nb_ports;
+	t_port_status		*ports;
 
+	nb_ports = port_end - port_start - 1;
+	ports = calloc(nb_ports, sizeof(t_port_status));
+	if (!ports)
+		return -ENOMEM;
+	for (uint32_t i = 0; i < port_end - port_start - 1; i++)
+		ports[i].port = port_start + i;
 	memset(fds, 0, sizeof(fds));
 	fds[0].fd = sockfd;
 	fds[0].events = POLLIN | POLLOUT | POLLERR;
 
-	int i = 1;
+	uint32_t i = port_start;
 	while (true)
 	{
-		int res = poll(fds, 1, 2000);
+		int res = poll(fds, 1, 1000);
 		if (res > 0)
 		{
 			if (fds[0].revents & POLLIN)
-				recv_tcp4(sockfd, scanlist);
-			else if (fds[0].revents & POLLOUT && i <= 1024)
+				recv_syn(sockfd, scanlist, ports, nb_ports);
+			else if (fds[0].revents & POLLOUT && i <= port_end)
 			{
 				int ret = send_tcp4(sockfd, sockaddr, iphdr, i++, &scanlist, SYN);
 				if (ret == -ENOMEM)
@@ -120,6 +127,18 @@ int			scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr)
 	}
 
 //	print_scanlist(scanlist);
+	for (uint32_t i = 0; i < nb_ports; i++)
+	{
+		if (ports[i].status & STATUS_OPEN)
+		{
+			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
+			if (servi)
+				printf("%d/tcp open %s\n", ports[i].port, servi->s_name);
+			else
+				printf("%d/tcp open unknown\n", ports[i].port);
+		}
+	}
+	free(ports);
 	return EXIT_SUCCESS;
 }
 
@@ -208,7 +227,7 @@ void		nmap(char *target)
 		.daddr = dst_addr
 	};
 	printf("SCAN SYN\n");
-	scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr);
+	scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, 1, 1024);
 }
 
 void		signature(void)
