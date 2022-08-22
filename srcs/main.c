@@ -146,19 +146,6 @@ int			poc_tcp(char *target)
 		.saddr = src_addr,
 		.daddr = dst_addr
 	};
-	/*
-	int ret;
-	for (size_t i = 1; i <= 1024; i++)
-	{
-		ret = send_tcp4(socks.sockfd_tcp, &sockaddr, &iphdr, i);
-		if (ret == ENOMEM)
-			fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
-		else if (ret == EXIT_FAILURE)
-			fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
-		while (recv_tcp4(socks.sockfd_tcp, &iphdr) == EXIT_FAILURE)
-			;
-	}
-	*/
 // ===
 	struct pollfd		fds[1];
 
@@ -188,7 +175,6 @@ int			poc_tcp(char *target)
 		else if (!res)
 			break ;
 	}
-
 // ===
 	return EXIT_SUCCESS;
 }
@@ -264,6 +250,22 @@ void		signature(void)
 info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min);
 }
 
+void		signal_handler(int signum)
+{
+	printf("\b\b  \b\b\n");
+	exit(128 + signum);
+}
+
+void		handling_signals()
+{
+	struct sigaction sa;
+
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = &signal_handler;
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGQUIT, &sa, NULL);
+}
+
 int			main(int ac, char **av)
 {
 	prog_name = strdup((*av[0]) ? av[0] : PROG_NAME);
@@ -278,6 +280,7 @@ int			main(int ac, char **av)
 		return EXIT_FAILURE;
 	}
 	signature();
+	handling_signals();
 	for (size_t i = 0; g_arglist[i]; i++)
 		nmap(g_arglist[i]);
 	free(prog_name);
