@@ -4,52 +4,7 @@
 char f_flood = 0;
 char *prog_name = NULL;
 
-int			get_ipv4_addr(void);
-
-unsigned short checksum(void *addr, size_t count)
-{
-	unsigned short *ptr;
-	unsigned long sum;
-
-	ptr = addr;
-	for (sum = 0; count > 1; count -= 2)
-		sum += *ptr++;
-	if (count > 0)
-		sum += *(unsigned char *)ptr;
-	while (sum >> 16)
-		sum = (sum & 0xffff) + (sum >> 16);
-	return (~sum);
-}
-
-struct tcp4_pseudohdr {
-	uint32_t		src;
-	uint32_t		dst;
-	uint8_t			zero;
-	uint8_t			protocol;
-	uint16_t		tcp_len;
-};
-
-uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len)
-{
-	struct tcp4_pseudohdr	tcpphdr = {
-		.src = iphdr->saddr,
-		.dst = iphdr->daddr,
-		.zero = 0,
-		.protocol = IPPROTO_TCP,
-		.tcp_len = htons(sizeof(struct tcphdr) + data_len)
-	};
-	uint8_t					buf[65536];
-
-	memcpy(buf, &tcpphdr, sizeof(struct tcp4_pseudohdr));
-	memcpy(buf + sizeof(struct tcp4_pseudohdr), tcphdr, sizeof(struct tcphdr));
-	memcpy(buf + sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr), data, data_len);
-	return (checksum(buf, sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr) + data_len));
-}
-
-# define MAX_TTL	255
-# define DATA_LEN	0
-
-int			recv_tcp4(int sockfd, struct iphdr *iphdr)
+int			recv_tcp4(int sockfd, struct scan_s *iphdr)
 {
 	struct	sockaddr_in		addr;
 	unsigned int			addr_len;
@@ -62,11 +17,13 @@ int			recv_tcp4(int sockfd, struct iphdr *iphdr)
 	buffer = malloc(len);
 	if (!buffer)
 		return ENOMEM;
+
 	if (recvfrom(sockfd, buffer, len, 0, (struct sockaddr *)&addr, &addr_len) < 0)
 	{
 		fprintf(stderr, "recvfrom: %s\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
+
 	tcphdr = buffer + sizeof(struct iphdr);
 	iphdr_rcv = buffer;
 	if (iphdr_rcv->saddr == iphdr->daddr && tcphdr->syn && tcphdr->ack)
@@ -76,39 +33,45 @@ int			recv_tcp4(int sockfd, struct iphdr *iphdr)
 		free(buffer);
 		return EXIT_FAILURE;
 	}
+
 	free(buffer);
 	return EXIT_SUCCESS;
 }
 
-int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, int dst_port)
+int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, int dst_port, struct scan_s **scanlist)
 {
 	void			*buffer;
 	void			*data;
 	struct tcphdr	*tcphdr;
 
 	iphdr->tot_len = sizeof(struct iphdr) + sizeof(struct tcphdr) + DATA_LEN;
+
 	buffer = calloc(iphdr->tot_len, sizeof(uint8_t));
 	if (!buffer)
 		return ENOMEM;
-	tcphdr = buffer + sizeof(struct iphdr);
+
 	data = buffer + sizeof(struct iphdr) + sizeof(struct tcphdr);
 	memcpy(buffer, iphdr, sizeof(struct iphdr));
+
+	tcphdr = buffer + sizeof(struct iphdr);
 	tcphdr->source = htons(33450);
 	tcphdr->dest = htons(dst_port);
 	tcphdr->syn = 1;
 	tcphdr->window = htons(1024);
 	tcphdr->doff = (uint8_t)(sizeof(struct tcphdr) / sizeof(uint32_t)); // size in 32 bit word
-//	memset(data, 42, DATA_LEN);
 	tcphdr->check = tcp4_checksum(iphdr, tcphdr, data, DATA_LEN);
+
 	if (sendto(sockfd, buffer, iphdr->tot_len, 0, (struct sockaddr *)sockaddr, sizeof(struct sockaddr)) < 0)
 		return EXIT_FAILURE;
-	free(buffer);
+
+	*scanlist = new_scanentry(*scanlist, buffer);
 	return EXIT_SUCCESS;
 }
 
 int			poc_tcp(char *target)
 {
 	sockfd_t			socks;
+	struct scan_s		*scanlist = NULL;
 
 	socks.sockfd_tcp = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
 	if (socks.sockfd_tcp < 0)
@@ -118,11 +81,6 @@ int			poc_tcp(char *target)
 	}
 	int on = 1;
 	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
-//	struct timeval tv = {
-//		.tv_sec = 2,
-//		.tv_usec = 0
-//	};
-//	setsockopt(socks.sockfd_tcp, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
 	uint32_t	src_addr;
 	uint32_t	dst_addr;
@@ -146,20 +104,7 @@ int			poc_tcp(char *target)
 		.saddr = src_addr,
 		.daddr = dst_addr
 	};
-	/*
-	int ret;
-	for (size_t i = 1; i <= 1024; i++)
-	{
-		ret = send_tcp4(socks.sockfd_tcp, &sockaddr, &iphdr, i);
-		if (ret == ENOMEM)
-			fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
-		else if (ret == EXIT_FAILURE)
-			fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
-		while (recv_tcp4(socks.sockfd_tcp, &iphdr) == EXIT_FAILURE)
-			;
-	}
-	*/
-// ===
+
 	struct pollfd		fds[1];
 
 	memset(fds, 0, sizeof(fds));
@@ -173,10 +118,10 @@ int			poc_tcp(char *target)
 		if (res > 0)
 		{
 			if (fds[0].revents & POLLIN)
-				recv_tcp4(socks.sockfd_tcp, &iphdr);
+				recv_tcp4(socks.sockfd_tcp, scanlist);
 			else if (fds[0].revents & POLLOUT && i <= 1024)
 			{
-				int ret = send_tcp4(socks.sockfd_tcp, &sockaddr, &iphdr, i++);
+				int ret = send_tcp4(socks.sockfd_tcp, &sockaddr, &iphdr, i++, &scanlist);
 				if (ret == ENOMEM)
 					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 				else if (ret == EXIT_FAILURE)
@@ -187,9 +132,11 @@ int			poc_tcp(char *target)
 		}
 		else if (!res)
 			break ;
+		if (i == 10)
+			break ;
 	}
 
-// ===
+//	print_scanlist(scanlist);
 	return EXIT_SUCCESS;
 }
 
