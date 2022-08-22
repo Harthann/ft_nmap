@@ -23,7 +23,7 @@ struct tcp4_pseudohdr {
 	uint16_t		tcp_len;
 };
 
-uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len)
+int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len, uint16_t *sum)
 {
 	struct tcp4_pseudohdr	tcpphdr = {
 		.src = iphdr->saddr,
@@ -32,10 +32,14 @@ uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data
 		.protocol = IPPROTO_TCP,
 		.tcp_len = htons(sizeof(struct tcphdr) + data_len)
 	};
-	uint8_t					buf[65536];
+	uint8_t					*buf;
 
+	buf = malloc(sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr) + data_len);
+	if (!buf)
+		return -ENOMEM;
 	memcpy(buf, &tcpphdr, sizeof(struct tcp4_pseudohdr));
 	memcpy(buf + sizeof(struct tcp4_pseudohdr), tcphdr, sizeof(struct tcphdr));
 	memcpy(buf + sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr), data, data_len);
-	return (checksum(buf, sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr) + data_len));
+	*sum = checksum(buf, sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr) + data_len);
+	return EXIT_SUCCESS;
 }

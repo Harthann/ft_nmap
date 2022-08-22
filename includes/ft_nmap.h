@@ -87,6 +87,6 @@ int			get_ipv4_addr(void);
 struct scan_s *new_scanentry(struct scan_s *head, void *buffer);
 void print_scanlist(struct scan_s *scanlist);
 bool	find_scan(void* buffer, struct scan_s *scanlist);
-uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len);
+int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len, uint16_t *sum);
 
 #endif

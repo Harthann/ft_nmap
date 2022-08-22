@@ -5,8 +5,6 @@ char *prog_name = NULL;
 
 int			recv_tcp4(int sockfd, struct scan_s *scanlist)
 {
-//	struct	sockaddr_in		addr;
-//	unsigned int			addr_len = sizeof(struct sockaddr);
 	void					*buffer;
 	int						len;
 	struct tcphdr			*tcphdr;
@@ -15,12 +13,13 @@ int			recv_tcp4(int sockfd, struct scan_s *scanlist)
 	len = sizeof(struct iphdr) + sizeof(struct tcphdr) + DATA_LEN;
 	buffer = malloc(len);
 	if (!buffer)
-		return ENOMEM;
+		return -ENOMEM;
 
 	if (recvfrom(sockfd, buffer, len, 0, NULL, NULL) < 0)
 	{
 		free(buffer);
 		fprintf(stderr, "recvfrom: %s\n", strerror(errno));
+		free(buffer);
 		return EXIT_FAILURE;
 	}
 
@@ -51,8 +50,9 @@ int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, i
 
 	buffer = calloc(iphdr->tot_len, sizeof(uint8_t));
 	if (!buffer)
-		return ENOMEM;
+		return -ENOMEM;
 
+	tcphdr = buffer + sizeof(struct iphdr);
 	data = buffer + sizeof(struct iphdr) + sizeof(struct tcphdr);
 	memcpy(buffer, iphdr, sizeof(struct iphdr));
 
@@ -63,12 +63,22 @@ int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, i
 	SET_TCPFLAG(tcphdr, flag);
 	tcphdr->window = htons(1024);
 	tcphdr->doff = (uint8_t)(sizeof(struct tcphdr) / sizeof(uint32_t)); // size in 32 bit word
-	tcphdr->check = tcp4_checksum(iphdr, tcphdr, data, DATA_LEN);
 
+//	memset(data, 42, DATA_LEN);
+	if (tcp4_checksum(iphdr, tcphdr, data, DATA_LEN, &tcphdr->check))
+	{
+		free(buffer);
+		return -ENOMEM;
+	}
+	
 	if (sendto(sockfd, buffer, iphdr->tot_len, 0, (struct sockaddr *)sockaddr, sizeof(struct sockaddr)) < 0)
+	{
+		free(buffer);
 		return EXIT_FAILURE;
 
+	}
 	*scanlist = new_scanentry(*scanlist, buffer);
+
 	return EXIT_SUCCESS;
 }
 
@@ -126,7 +136,7 @@ int			poc_tcp(char *target)
 			else if (fds[0].revents & POLLOUT && i <= 1024)
 			{
 				int ret = send_tcp4(socks.sockfd_tcp, &sockaddr, &iphdr, i++, &scanlist, SYN);
-				if (ret == ENOMEM)
+				if (ret == -ENOMEM)
 					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 				else if (ret == EXIT_FAILURE)
 					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
