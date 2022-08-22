@@ -86,7 +86,7 @@ int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, i
 	return EXIT_SUCCESS;
 }
 
-int			scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, uint32_t port_start, uint32_t port_end)
+t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, uint32_t port_start, uint32_t port_end)
 {
 	struct scan_s		*scanlist = NULL;
 	struct pollfd		fds[1];
@@ -96,7 +96,7 @@ int			scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, ui
 	nb_ports = port_end - port_start - 1;
 	ports = calloc(nb_ports, sizeof(t_port_status));
 	if (!ports)
-		return -ENOMEM;
+		return NULL;
 	for (uint32_t i = 0; i < port_end - port_start - 1; i++)
 		ports[i].port = port_start + i;
 	memset(fds, 0, sizeof(fds));
@@ -127,19 +127,7 @@ int			scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, ui
 	}
 
 //	print_scanlist(scanlist);
-	for (uint32_t i = 0; i < nb_ports; i++)
-	{
-		if (ports[i].status & STATUS_OPEN)
-		{
-			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
-			if (servi)
-				printf("%d/tcp open %s\n", ports[i].port, servi->s_name);
-			else
-				printf("%d/tcp open unknown\n", ports[i].port);
-		}
-	}
-	free(ports);
-	return EXIT_SUCCESS;
+	return ports;
 }
 
 int			get_ipv4_addr(void)
@@ -199,11 +187,11 @@ void		nmap(char *target)
 		return ;
 	}
 	inet_pton(AF_INET, target_ip, &dst_addr);
-	free(target_ip);
 	socks.sockfd_tcp = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
 	if (socks.sockfd_tcp < 0)
 	{
 		fprintf(stderr, "%s: socket: %s\n", prog_name, strerror(errno));
+		free(target_ip);
 		return ;
 	}
 	int on = 1;
@@ -226,8 +214,25 @@ void		nmap(char *target)
 		.saddr = get_ipv4_addr(), // TODO: if not ip ?
 		.daddr = dst_addr
 	};
-	printf("SCAN SYN\n");
-	scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, 1, 1024);
+	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, 1, 1024);
+	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
+	printf("PORT      STATUS            SERVICE\n");
+	for (uint32_t i = 0; i < 1024; i++)
+	{
+		if (ports[i].status & STATUS_OPEN)
+		{
+			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
+			int			n;
+			printf("%d/tcp%n", ports[i].port, &n);
+			printf("%*copen%*c", 10 - n, ' ', 18 - 4, ' ');
+			if (servi)
+				printf("%s\n", servi->s_name);
+			else
+				printf("unknown\n");
+		}
+	}
+	free(ports);
+	free(target_ip);
 }
 
 void		signature(void)
