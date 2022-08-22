@@ -29,7 +29,7 @@ struct tcp4_pseudohdr {
 	uint16_t		tcp_len;
 };
 
-uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len)
+int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len, uint16_t *sum)
 {
 	struct tcp4_pseudohdr	tcpphdr = {
 		.src = iphdr->saddr,
@@ -38,12 +38,16 @@ uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data
 		.protocol = IPPROTO_TCP,
 		.tcp_len = htons(sizeof(struct tcphdr) + data_len)
 	};
-	uint8_t					buf[65536];
+	uint8_t					*buf;
 
+	buf = malloc(sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr) + data_len);
+	if (!buf)
+		return -ENOMEM;
 	memcpy(buf, &tcpphdr, sizeof(struct tcp4_pseudohdr));
 	memcpy(buf + sizeof(struct tcp4_pseudohdr), tcphdr, sizeof(struct tcphdr));
 	memcpy(buf + sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr), data, data_len);
-	return (checksum(buf, sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr) + data_len));
+	*sum = checksum(buf, sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr) + data_len);
+	return EXIT_SUCCESS;
 }
 
 # define MAX_TTL	255
@@ -51,8 +55,6 @@ uint16_t	tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data
 
 int			recv_tcp4(int sockfd, struct iphdr *iphdr)
 {
-	struct	sockaddr_in		addr;
-	unsigned int			addr_len;
 	void					*buffer;
 	int						len;
 	struct tcphdr			*tcphdr;
@@ -61,10 +63,11 @@ int			recv_tcp4(int sockfd, struct iphdr *iphdr)
 	len = sizeof(struct iphdr) + sizeof(struct tcphdr) + DATA_LEN;
 	buffer = malloc(len);
 	if (!buffer)
-		return ENOMEM;
-	if (recvfrom(sockfd, buffer, len, 0, (struct sockaddr *)&addr, &addr_len) < 0)
+		return -ENOMEM;
+	if (recvfrom(sockfd, buffer, len, 0, NULL, NULL) < 0)
 	{
 		fprintf(stderr, "recvfrom: %s\n", strerror(errno));
+		free(buffer);
 		return EXIT_FAILURE;
 	}
 	tcphdr = buffer + sizeof(struct iphdr);
@@ -89,7 +92,7 @@ int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, i
 	iphdr->tot_len = sizeof(struct iphdr) + sizeof(struct tcphdr) + DATA_LEN;
 	buffer = calloc(iphdr->tot_len, sizeof(uint8_t));
 	if (!buffer)
-		return ENOMEM;
+		return -ENOMEM;
 	tcphdr = buffer + sizeof(struct iphdr);
 	data = buffer + sizeof(struct iphdr) + sizeof(struct tcphdr);
 	memcpy(buffer, iphdr, sizeof(struct iphdr));
@@ -99,9 +102,16 @@ int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, i
 	tcphdr->window = htons(1024);
 	tcphdr->doff = (uint8_t)(sizeof(struct tcphdr) / sizeof(uint32_t)); // size in 32 bit word
 //	memset(data, 42, DATA_LEN);
-	tcphdr->check = tcp4_checksum(iphdr, tcphdr, data, DATA_LEN);
+	if (tcp4_checksum(iphdr, tcphdr, data, DATA_LEN, &tcphdr->check))
+	{
+		free(buffer);
+		return -ENOMEM;
+	}
 	if (sendto(sockfd, buffer, iphdr->tot_len, 0, (struct sockaddr *)sockaddr, sizeof(struct sockaddr)) < 0)
+	{
+		free(buffer);
 		return EXIT_FAILURE;
+	}
 	free(buffer);
 	return EXIT_SUCCESS;
 }
@@ -164,7 +174,7 @@ int			poc_tcp(char *target)
 			else if (fds[0].revents & POLLOUT && i <= 1024)
 			{
 				int ret = send_tcp4(socks.sockfd_tcp, &sockaddr, &iphdr, i++);
-				if (ret == ENOMEM)
+				if (ret == -ENOMEM)
 					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 				else if (ret == EXIT_FAILURE)
 					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
