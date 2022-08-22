@@ -93,10 +93,13 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	uint32_t			nb_ports;
 	t_port_status		*ports;
 
-	nb_ports = port_end - port_start - 1;
+	nb_ports = (port_end - port_start) + 1;
 	ports = calloc(nb_ports, sizeof(t_port_status));
 	if (!ports)
+	{
+		fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 		return NULL;
+	}
 	for (uint32_t i = 0; i < port_end - port_start - 1; i++)
 		ports[i].port = port_start + i;
 	memset(fds, 0, sizeof(fds));
@@ -224,6 +227,7 @@ void		nmap(char *target)
 	printf("PORT      STATUS            SERVICE\n");
 	for (uint32_t i = 0; i < 1024; i++)
 	{
+		printf("%d\n", i);
 		if (ports[i].status & STATUS_OPEN)
 		{
 			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
