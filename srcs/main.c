@@ -32,10 +32,15 @@ int			recv_tcp4(int sockfd, struct scan_s *scanlist)
 	tcphdr = buffer + sizeof(struct iphdr);
 	if (find_scan(buffer, scanlist)) {
 		if (TCP_FLAG(tcphdr) == SYNACK)
-			printf("%d/tcp\n", htons(tcphdr->source));
+		{
+			struct servent* servi = getservbyport(tcphdr->source, "tcp");
+			if (servi)
+				printf("%d/tcp %s\n", htons(tcphdr->source), servi->s_name);
+			else
+				printf("%d/tcp unknown\n", htons(tcphdr->source));
+		}
 		return EXIT_SUCCESS;
 	}
-
 	free(buffer);
 	return EXIT_SUCCESS;
 }
@@ -233,6 +238,7 @@ void		handling_signals()
 {
 	struct sigaction sa;
 
+	memset(&sa, 0, sizeof(struct sigaction));
 	sigemptyset(&sa.sa_mask);
 	sa.sa_handler = &signal_handler;
 	sigaction(SIGINT, &sa, NULL);
