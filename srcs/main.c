@@ -133,26 +133,29 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	return ports;
 }
 
-int			get_ipv4_addr(void)
+int			get_ipv4_addr(int *addr)
 {
-	int					addr;
 	struct sockaddr_in	*paddr;
 	struct ifaddrs		*ifap, *tmp;
 
-	getifaddrs(&ifap);
+	if (getifaddrs(&ifap))
+	{
+		fprintf(stderr, "%s: getifaddrs: %s\n", prog_name, strerror(errno));
+		return EXIT_FAILURE;
+	}
 	tmp = ifap;
 	while (tmp)
 	{
 		if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET && !(tmp->ifa_flags & IFF_LOOPBACK))
 		{
 			paddr = (struct sockaddr_in *)tmp->ifa_addr;
-			inet_pton(AF_INET, inet_ntoa(paddr->sin_addr), &addr);
+			inet_pton(AF_INET, inet_ntoa(paddr->sin_addr), addr);
 			break ;
 		}
 		tmp = tmp->ifa_next;
 	}
 	freeifaddrs(ifap);
-	return (addr);
+	return EXIT_SUCCESS;
 }
 
 char		*resolve_hostname(char *hostname)
@@ -214,9 +217,14 @@ void		nmap(char *target)
 		.ttl = 255,
 		.protocol = IPPROTO_TCP,
 		.check = 0, // filled by kernel
-		.saddr = get_ipv4_addr(), // TODO: if not ip ?
+		.saddr = 0,
 		.daddr = dst_addr
 	};
+	if (get_ipv4_addr((int *)&iphdr.saddr))
+	{
+		free(target_ip);
+		return ;
+	}
 	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, 1, 1024);
 	if (!ports)
 	{

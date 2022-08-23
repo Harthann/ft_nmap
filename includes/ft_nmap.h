@@ -29,6 +29,8 @@
 # include <time.h>
 # include <unistd.h>
 
+# include <pcap.h>
+
 # include "logs.h"
 
 # define PROG_NAME		"ft_nmap"
@@ -88,7 +90,7 @@ struct scan_s {
 #define CWR 0x01
 #endif
 
-int			get_ipv4_addr(void);
+int			get_ipv4_addr(int *addr);
 
 struct scan_s *new_scanentry(struct scan_s *head, void *buffer);
 void print_scanlist(struct scan_s *scanlist);
