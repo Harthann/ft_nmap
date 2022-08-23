@@ -71,8 +71,10 @@ void		nmap(char *target, int portrange[2])
 	}
 	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
 	printf("PORT      STATUS            SERVICE\n");
-	for (uint32_t i = 0; i < 1024; i++)
+	for (uint32_t i = 0; i < ((uint32_t)portrange[1] - portrange[0] + 1); i++)
 	{
+
+		printf("Print port number: %u\n", portrange[0] + i);
 		if (ports[i].status & STATUS_OPEN)
 		{
 			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
@@ -134,13 +136,12 @@ int			main(int ac, char **av)
 	*/
 	signature();
 	handling_signals();
-	int ports[2] = {1, 1024};
 
 	/*
 	** For each ip found inside arguments we'll perform a scan
 	*/
-	for (size_t i = 0; g_arglist[i]; i++)
-		nmap(g_arglist[i], ports);
+	for (size_t i = 0; config.targets[i]; i++)
+		nmap(config.targets[i], config.portrange);
 
 	free(prog_name);
 	return EXIT_SUCCESS;

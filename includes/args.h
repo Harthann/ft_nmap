@@ -6,7 +6,7 @@
 
 extern struct s_optdesc options_descriptor[];
 
-#define TODO(string) {printf("Not yet implemented: %s\n", string); return EXIT_FAILURE;}
+#define TODO(string) printf("Not yet implemented: %s\n", string)
 
 int			parse_arg(int ac, char **av, scanconf_t *config);
 
