@@ -3,7 +3,13 @@
 
 char *prog_name = NULL;
 
-void		nmap(char *target)
+/*
+** Target is a string containing either the ip or the domain name of the target
+** Ports[0] correspond to the first port to scan and ports[1] the last
+** Performuing ports[1] - ports[0] should give the number of ports
+** This number should lend between 1 and 1024
+*/
+void		nmap(char *target, int portrange[2])
 {
 	pcap_if_t		*alldesvp, *dev;
 	sockfd_t		socks;
@@ -56,7 +62,7 @@ void		nmap(char *target)
 		free(target_ip);
 		return ;
 	}
-	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, 1, 1024);
+	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, portrange[0], portrange[1]);
 	if (!ports)
 	{
 		pcap_freealldevs(alldesvp);
@@ -99,21 +105,43 @@ info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_m
 
 int			main(int ac, char **av)
 {
+	scanconf_t	config = {
+		.types = -1,
+		.targets = NULL,
+		.portrange = {1, 1024},
+	};
+
+	/*
+	** Storing the program name for better printing
+	*/
 	prog_name = strdup((*av[0]) ? av[0] : PROG_NAME);
 	if (!prog_name)
 	{
 		fprintf(stderr, "%s: %s\n", PROG_NAME, strerror(errno));
 		return EXIT_FAILURE;
 	}
-	if (parse_arg(ac - 1, av + 1) != 0)
+	/*
+	** Parse argument send to the program using ft_getopt
+	*/
+	if (parse_arg(ac - 1, av + 1, &config) != 0)
 	{
 		free(prog_name);
 		return EXIT_FAILURE;
 	}
+
+	/*
+	** Preparing the program to perform scans
+	*/
 	signature();
 	handling_signals();
+	int ports[2] = {1, 1024};
+
+	/*
+	** For each ip found inside arguments we'll perform a scan
+	*/
 	for (size_t i = 0; g_arglist[i]; i++)
-		nmap(g_arglist[i]);
+		nmap(g_arglist[i], ports);
+
 	free(prog_name);
 	return EXIT_SUCCESS;
 }

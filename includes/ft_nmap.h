@@ -49,6 +49,13 @@
 extern char *prog_name;
 
 /*=== STRUCTURES ===*/
+typedef struct scanconf_s {
+	int		types;
+	char	**targets;
+	int		portrange[2];
+}	scanconf_t;
+
+
 typedef struct	sockfd_s {
 	int			sockfd_tcp;
 }				sockfd_t;

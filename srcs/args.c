@@ -9,13 +9,37 @@ struct s_optdesc options_descriptor[] = {
 	{"ports",	ARGREQ, 0, 0, DESC_PORTS},
 	{"scan",	ARGREQ, 0, 0, DESC_SCAN},
 	{"speedup",	ARGREQ, 0, 0, DESC_SPEED},
+
 /* Describing options with global flag variable separately */
 //		{"flood",	NO_ARG, &f_flood, 0, 0},
 	{0, 0, 0, 0, 0}
 };
 
+int			parse_longoptions(int option_index, char *option, scanconf_t *config) {
 
-int			parse_arg(int ac, char **av) {
+	(void)config;
+	switch (option_index)
+	{
+		case 0:
+			return EXIT_FAILURE;
+		case 1:
+			TODO("option ip");
+		case 2:
+			TODO("option file");
+		case 3:
+			TODO("option ports");
+		case 4:
+			TODO("option scan");
+		case 5:
+			TODO("option speedup");
+	}
+
+	printf("Option: %s not found\n", option);
+	return EXIT_FAILURE;
+}
+
+
+int			parse_arg(int ac, char **av, scanconf_t *config) {
 	char c;
 
 	int option_index = 0;
@@ -29,10 +53,12 @@ int			parse_arg(int ac, char **av) {
 				print_help(options_descriptor);
 				getopt_release();
 				exit(0);
-			case 'i':
-				printf("This is i opt with arg: %s\n", ft_optarg);
-				break ;
 			case '!':
+				if (parse_longoptions(option_index, av[ft_optind], config) == EXIT_FAILURE) {
+					print_help(options_descriptor);
+					getopt_release();
+					exit(0);
+				}
 				printf("Found long opt %s with arg %s\n", av[ft_optind], ft_optarg);
 				break ;
 			case '?':
@@ -46,7 +72,5 @@ int			parse_arg(int ac, char **av) {
 		print_help(options_descriptor);
 		return EXIT_FAILURE;
 	}
-	for (int i =0; g_arglist[i]; i++)
-		printf("%s%c", g_arglist[i], g_arglist[i + 1] ? ' ' : '\n');
 	return 0;
 }

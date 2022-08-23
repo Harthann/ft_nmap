@@ -90,7 +90,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 				else if (ret == EXIT_FAILURE)
 					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
 			}
-			else if (i > 1024 && fds[0].revents & POLLOUT)
+			else if (i > nb_ports && fds[0].revents & POLLOUT)
 				fds[0].events = POLLIN | POLLERR;
 		}
 		else if (!res)
