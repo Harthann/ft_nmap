@@ -4,14 +4,53 @@
 char *prog_name = NULL;
 pcap_t	*handle = NULL;
 
+void dbg_dump_bytes(const void* data, size_t size) {
+	char ascii[17];
+	size_t i;
+	ascii[16] = '\0';
+	for (i = 0; i < size; ++i) {
+		if (i % 16 == 0)
+			fprintf(stderr, "%p: ", data + i);
+		fprintf(stderr, "%02x ", ((unsigned char*)data)[i]);
+		if (((unsigned char*)data)[i] >= ' ' && ((unsigned char*)data)[i] <= '~') {
+			ascii[i % 16] = ((unsigned char*)data)[i];
+		} else {
+			ascii[i % 16] = '.';
+		}
+		if ((i+1) % 8 == 0 || i+1 == size) {
+			fprintf(stderr, " ");
+			if ((i+1) % 16 == 0) {
+				fprintf(stderr, "|  %s \n", ascii);
+			} else if (i+1 == size) {
+				ascii[(i+1) % 16] = '\0';
+				if ((i+1) % 16 <= 8) {
+					fprintf(stderr, " ");
+				}
+				fprintf(stderr, "%*.0d", 3 * (16 - (((int)i + 1) % 16)), 0);
+				fprintf(stderr, "|  %s \n", ascii);
+			}
+		}
+	}
+
+}
+
+#include <linux/if_ether.h>
+#include <pcap/sll.h>
 void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
 {
 	(void)args;
 	(void)pkthdr;
 	(void)packet;
 	static int count = 1;
-	fprintf(stdout, "%3d, ", count);
-	fflush(stdout);
+	struct iphdr *ip = (struct iphdr*)(packet + sizeof(struct sll_header));
+
+	struct in_addr saddr = {.s_addr = ip->saddr};
+	struct in_addr daddr = {.s_addr = ip->daddr};
+	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
+	dbg_dump_bytes(ip, sizeof(struct iphdr));
+	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
+	//fprintf(stdout, "%3d, ", count);
+	//fflush(stdout);
 	count++;
 }
 
@@ -58,10 +97,10 @@ void		nmap(char *target, int portrange[2])
 	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
 // ===
 // ===
-//	struct sockaddr_in sockaddr;
-//	sockaddr.sin_addr.s_addr = dst_addr;
-//	sockaddr.sin_family = AF_INET;
-//	sockaddr.sin_port = 0;
+	struct sockaddr_in sockaddr;
+	sockaddr.sin_addr.s_addr = dst_addr;
+	sockaddr.sin_family = AF_INET;
+	sockaddr.sin_port = 0;
 	(void)portrange;
 	struct iphdr	iphdr = {
 		.version = 4,
@@ -90,8 +129,10 @@ void		nmap(char *target, int portrange[2])
 		fprintf(stderr, "%s: pcap_loopkupnet: %s\n", prog_name, errbuf);
 		net = 0;
 		mask = 0;
+
 	}
-	handle = pcap_open_live(dev_name, 1024, 1, 1000, errbuf);
+
+	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
 	if (!handle)
 	{
 		fprintf(stderr, "%s: pcap_open_live: %s\n", prog_name, errbuf);
@@ -99,6 +140,7 @@ void		nmap(char *target, int portrange[2])
 		free(target_ip);
 		return ;
 	}
+
 	struct bpf_program fp;
 	char filter_exp[] = "port 22";
 	if (pcap_compile(handle, &fp, filter_exp, 0, net) == PCAP_ERROR) {
@@ -115,13 +157,24 @@ void		nmap(char *target, int portrange[2])
 	sa.sa_handler = &terminate_pcap;
 	sigaction(SIGALRM, &sa, NULL);
 	alarm(10);
-	int ret = pcap_dispatch(handle, -1, my_callback, NULL);
-	if (ret == PCAP_ERROR)
-		printf("error\n");
-	else if (ret == PCAP_ERROR_BREAK)
-		printf("error break\n");
-	else
-		printf("all fine\n");
+
+	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, portrange[0], portrange[1]);
+	(void)ports;
+
+	while (1) {
+		int ret = pcap_dispatch(handle, -1, my_callback, NULL);
+		if (ret == PCAP_ERROR) {
+			printf("error\n");
+			break ;
+		}
+		else if (ret == PCAP_ERROR_BREAK) {
+			printf("error break\n");
+			break ;
+		}
+		else {
+			printf("all fine\n");
+		}
+	}
 	pcap_close(handle);
 	/*
 	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, portrange[0], portrange[1]);

@@ -72,7 +72,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		ports[i].port = port_start + i;
 	memset(fds, 0, sizeof(fds));
 	fds[0].fd = sockfd;
-	fds[0].events = POLLIN | POLLOUT | POLLERR;
+	fds[0].events = POLLOUT | POLLERR;
 
 	uint32_t i = port_start;
 	while (true)
