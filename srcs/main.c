@@ -155,25 +155,16 @@ pcap_if_t		*get_device(pcap_if_t **alldesvp)
 	return tmp;
 }
 
-int			get_ipv4_addr(int *addr)
+int			get_ipv4_addr(int *addr, pcap_if_t *dev)
 {
 	int					ret;
-	pcap_if_t			*dev;
-	pcap_if_t			*alldesvp;
 	struct ifaddrs		*ifap, *tmp;
 	struct sockaddr_in	*paddr;
 
 	ret = EXIT_FAILURE;
-	dev = get_device(&alldesvp);
-	if (!dev)
-	{
-		fprintf(stderr, "No suitable device found.\n");
-		return EXIT_FAILURE;
-	}
 	if (getifaddrs(&ifap))
 	{
 		fprintf(stderr, "%s: getifaddrs: %s\n", prog_name, strerror(errno));
-		pcap_freealldevs(alldesvp);
 		return EXIT_FAILURE;
 	}
 	tmp = ifap;
@@ -191,7 +182,6 @@ int			get_ipv4_addr(int *addr)
 	if (ret == EXIT_FAILURE)
 		fprintf(stderr, "No suitable device found.\n");
 	freeifaddrs(ifap);
-	pcap_freealldevs(alldesvp);
 	return (ret);
 }
 
@@ -219,6 +209,7 @@ char		*resolve_hostname(char *hostname)
 
 void		nmap(char *target)
 {
+	pcap_if_t		*alldesvp, *dev;
 	sockfd_t		socks;
 	uint32_t		dst_addr;
 	char			*target_ip;
@@ -234,6 +225,12 @@ void		nmap(char *target)
 	if (socks.sockfd_tcp < 0)
 	{
 		fprintf(stderr, "%s: socket: %s\n", prog_name, strerror(errno));
+		free(target_ip);
+		return ;
+	}
+	dev = get_device(&alldesvp);
+	if (!dev)
+	{
 		free(target_ip);
 		return ;
 	}
@@ -257,14 +254,16 @@ void		nmap(char *target)
 		.saddr = 0,
 		.daddr = dst_addr
 	};
-	if (get_ipv4_addr((int *)&iphdr.saddr) == EXIT_FAILURE)
+	if (get_ipv4_addr((int *)&iphdr.saddr, dev) == EXIT_FAILURE)
 	{
+		pcap_freealldevs(alldesvp);
 		free(target_ip);
 		return ;
 	}
 	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, 1, 1024);
 	if (!ports)
 	{
+		pcap_freealldevs(alldesvp);
 		free(target_ip);
 		return ;
 	}
@@ -285,6 +284,7 @@ void		nmap(char *target)
 		}
 	}
 	free(ports);
+	pcap_freealldevs(alldesvp);
 	free(target_ip);
 }
 
