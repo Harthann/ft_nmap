@@ -150,12 +150,14 @@ int			get_ipv4_addr(int *addr)
 		{
 			paddr = (struct sockaddr_in *)tmp->ifa_addr;
 			inet_pton(AF_INET, inet_ntoa(paddr->sin_addr), addr);
-			break ;
+			freeifaddrs(ifap);
+			return EXIT_SUCCESS;
 		}
 		tmp = tmp->ifa_next;
 	}
 	freeifaddrs(ifap);
-	return EXIT_SUCCESS;
+	fprintf(stderr, "%s: Can't find suitable device\n", prog_name);
+	return EXIT_FAILURE;
 }
 
 char		*resolve_hostname(char *hostname)
