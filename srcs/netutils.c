@@ -8,7 +8,10 @@ char		*get_device(void)
 	char			*name;
 	pcap_if_t		*alldesvp, *tmp;
 	char			errbuf[PCAP_ERRBUF_SIZE];
+
 	name = NULL;
+	alldesvp = NULL;
+	memset(errbuf, 0, sizeof(errbuf));
 	if (pcap_findalldevs(&alldesvp, errbuf) == PCAP_ERROR)
 	{
 		fprintf(stderr, "%s: pcap_findalldevs: %s\n", prog_name, errbuf);

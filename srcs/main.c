@@ -1,8 +1,9 @@
 #include "ft_nmap.h"
 #include "args.h"
 
-char *prog_name = NULL;
-pcap_t	*handle = NULL;
+char				*prog_name = NULL;
+pcap_t				*handle = NULL;
+struct scan_s		*scanlist = NULL;
 
 void dbg_dump_bytes(const void* data, size_t size) {
 	char ascii[17];
@@ -33,8 +34,6 @@ void dbg_dump_bytes(const void* data, size_t size) {
 	}
 }
 
-#include <linux/if_ether.h>
-#include <pcap/sll.h>
 void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
 {
 	(void)args;
@@ -48,6 +47,7 @@ void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* 
 	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
 	dbg_dump_bytes(ip, sizeof(struct iphdr));
 	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
+	scanlist = new_scanentry(scanlist, (void *)packet + sizeof(struct sll_header));
 	//fprintf(stdout, "%3d, ", count);
 	//fflush(stdout);
 	count++;
@@ -139,9 +139,12 @@ void		nmap(char *target, int portrange[2])
 		free(target_ip);
 		return ;
 	}
+	printf("pcap open\n");
 
 	struct bpf_program fp;
-	char filter_exp[] = "port 22";
+	struct in_addr daddr = {.s_addr = iphdr.saddr};
+	char filter_exp[256];
+	sprintf(filter_exp, "ip host %s and portrange %d-%d", inet_ntoa(daddr), portrange[0], portrange[1]);
 	if (pcap_compile(handle, &fp, filter_exp, 0, net) == PCAP_ERROR) {
 		fprintf(stderr, "%s: pcap_compile: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
 		return ;
@@ -150,14 +153,15 @@ void		nmap(char *target, int portrange[2])
 		fprintf(stderr, "%s: pcap_setfilter: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
 		return ;
 	}
+	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, portrange[0], portrange[1]);
 	struct sigaction sa;
 
+	memset(&sa, 0, sizeof(struct sigaction));
 	sigemptyset(&sa.sa_mask);
 	sa.sa_handler = &terminate_pcap;
 	sigaction(SIGALRM, &sa, NULL);
-	alarm(10);
+	alarm(5);
 
-	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, portrange[0], portrange[1]);
 	(void)ports;
 
 	while (1) {
@@ -174,35 +178,36 @@ void		nmap(char *target, int portrange[2])
 			printf("all fine\n");
 		}
 	}
-	pcap_close(handle);
-	/*
-	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, portrange[0], portrange[1]);
-	if (!ports)
-	{
-		free(dev_name);
-		free(target_ip);
-		return ;
-	}
 	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
 	printf("PORT      STATUS            SERVICE\n");
-	for (uint32_t i = 0; i < ((uint32_t)portrange[1] - portrange[0] + 1); i++)
+	struct scan_s *tmp;
+
+	tmp = scanlist;
+	while (tmp)
 	{
+		struct iphdr		*iphdr;
+		struct tcphdr		*tcphdr;
 
-		if (ports[i].status & STATUS_OPEN)
+		iphdr = tmp->packet;
+		if (iphdr->protocol == IPPROTO_TCP)
 		{
-			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
-			int			n;
-			printf("%d/tcp%n", ports[i].port, &n);
-			printf("%*copen%*c", 10 - n, ' ', 18 - 4, ' ');
-			if (servi)
-				printf("%s\n", servi->s_name);
-			else
-				printf("unknown\n");
+			tcphdr = tmp->packet + sizeof(struct iphdr);
+			if (TCP_FLAG(tcphdr) == (SYN | ACK))
+			{
+				int n;
+				struct servent* servi = getservbyport(tcphdr->source, "tcp");
+				printf("%d/tcp%n", ntohs(tcphdr->source), &n);
+				printf("%*copen%*c", 10 - n, ' ', 18 - 4, ' ');
+				if (servi)
+					printf("%s\n", servi->s_name);
+				else
+					printf("unknown\n");
+			}
 		}
+		tmp = tmp->next;
 	}
-
-	free(ports);
-	*/
+	free_scanlist(scanlist);
+	pcap_close(handle);
 	free(dev_name);
 	free(target_ip);
 }

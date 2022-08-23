@@ -6,7 +6,7 @@
 ** Flags are defined in ft_nmap
 ** Once send is success, the packet is added to a scanlist
 */
-int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, int dst_port, struct scan_s **scanlist, uint16_t flag)
+int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, int dst_port, uint16_t flag)
 {
 	void			*buffer;
 	void			*data;
@@ -43,8 +43,6 @@ int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, i
 		return EXIT_FAILURE;
 
 	}
-	*scanlist = new_scanentry(*scanlist, buffer);
-
 	return EXIT_SUCCESS;
 }
 

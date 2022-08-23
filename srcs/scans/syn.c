@@ -56,7 +56,6 @@ int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb
 */
 t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, uint32_t port_start, uint32_t port_end)
 {
-	struct scan_s		*scanlist = NULL;
 	struct pollfd		fds[1];
 	uint32_t			nb_ports;
 	t_port_status		*ports;
@@ -80,24 +79,20 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		int res = poll(fds, 1, 1000);
 		if (res > 0)
 		{
-			if (fds[0].revents & POLLIN)
-				recv_syn(sockfd, scanlist, ports, nb_ports);
-			else if (fds[0].revents & POLLOUT && i <= port_end)
+			if (fds[0].revents & POLLOUT && i <= port_end)
 			{
-				int ret = send_tcp4(sockfd, sockaddr, iphdr, i++, &scanlist, SYN);
+				int ret = send_tcp4(sockfd, sockaddr, iphdr, i++, SYN);
 				if (ret == -ENOMEM)
 					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 				else if (ret == EXIT_FAILURE)
 					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
 			}
 			else if (i > nb_ports && fds[0].revents & POLLOUT)
-				fds[0].events = POLLIN | POLLERR;
+				fds[0].events = POLLERR;
 		}
 		else if (!res)
 			break ;
 	}
-
-//	print_scanlist(scanlist);
 	return ports;
 }
 
