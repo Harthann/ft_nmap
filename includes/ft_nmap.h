@@ -90,7 +90,7 @@ struct scan_s {
 #define CWR 0x01
 #endif
 
-int			get_ipv4_addr(int *addr, pcap_if_t *dev);
+int			get_ipv4_addr(int *addr, char *name);
 
 struct scan_s *new_scanentry(struct scan_s *head, void *buffer);
 void print_scanlist(struct scan_s *scanlist);

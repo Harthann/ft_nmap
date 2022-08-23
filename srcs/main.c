@@ -133,17 +133,19 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	return ports;
 }
 
-pcap_if_t		*get_device(pcap_if_t **alldesvp)
+char		*get_device(void)
 {
+	char			*name;
+	pcap_if_t		*alldesvp, *tmp;
 	char			errbuf[PCAP_ERRBUF_SIZE];
-	pcap_if_t		*tmp;
 
-	if (pcap_findalldevs(alldesvp, errbuf) == PCAP_ERROR)
+	name = NULL;
+	if (pcap_findalldevs(&alldesvp, errbuf) == PCAP_ERROR)
 	{
 		fprintf(stderr, "%s: pcap_findalldevs: %s\n", prog_name, errbuf);
 		return NULL;
 	}
-	tmp = *alldesvp;
+	tmp = alldesvp;
 	while (tmp)
 	{
 		if (!(tmp->flags & PCAP_IF_LOOPBACK) && (tmp->flags & PCAP_IF_UP) &&
@@ -152,10 +154,13 @@ pcap_if_t		*get_device(pcap_if_t **alldesvp)
 			break ;
 		tmp = tmp->next;
 	}
-	return tmp;
+	if (tmp && !(name = strdup(tmp->name)))
+		fprintf(stderr, "%s: strdup: %s\n", prog_name, strerror(errno));
+	pcap_freealldevs(alldesvp);
+	return name;
 }
 
-int			get_ipv4_addr(int *addr, pcap_if_t *dev)
+int			get_ipv4_addr(int *addr, char *name)
 {
 	int					ret;
 	struct ifaddrs		*ifap, *tmp;
@@ -170,9 +175,9 @@ int			get_ipv4_addr(int *addr, pcap_if_t *dev)
 	tmp = ifap;
 	while (tmp)
 	{
-		if (tmp->ifa_name && tmp->ifa_addr->sa_family == AF_INET && !strcmp(dev->name, tmp->ifa_name))
+		if (tmp->ifa_name && tmp->ifa_addr->sa_family == AF_INET && !strcmp(name, tmp->ifa_name))
 		{
-			printf("Suitable device '%s' found.\n", dev->name);
+			printf("Suitable device '%s' found.\n", name);
 			paddr = (struct sockaddr_in *)tmp->ifa_addr;
 			inet_pton(AF_INET, inet_ntoa(paddr->sin_addr), addr);
 			ret = EXIT_SUCCESS;
@@ -209,7 +214,7 @@ char		*resolve_hostname(char *hostname)
 
 void		nmap(char *target)
 {
-	pcap_if_t		*alldesvp, *dev;
+	char			*dev_name;
 	sockfd_t		socks;
 	uint32_t		dst_addr;
 	char			*target_ip;
@@ -228,15 +233,16 @@ void		nmap(char *target)
 		free(target_ip);
 		return ;
 	}
-	dev = get_device(&alldesvp);
-	if (!dev)
+	dev_name = get_device();
+	if (!dev_name)
 	{
 		free(target_ip);
 		return ;
 	}
 	int on = 1;
 	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
-
+// ===
+// ===
 	struct sockaddr_in sockaddr;
 	sockaddr.sin_addr.s_addr = dst_addr;
 	sockaddr.sin_family = AF_INET;
@@ -254,16 +260,16 @@ void		nmap(char *target)
 		.saddr = 0,
 		.daddr = dst_addr
 	};
-	if (get_ipv4_addr((int *)&iphdr.saddr, dev) == EXIT_FAILURE)
+	if (get_ipv4_addr((int *)&iphdr.saddr, dev_name) == EXIT_FAILURE)
 	{
-		pcap_freealldevs(alldesvp);
+		free(dev_name);
 		free(target_ip);
 		return ;
 	}
 	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, 1, 1024);
 	if (!ports)
 	{
-		pcap_freealldevs(alldesvp);
+		free(dev_name);
 		free(target_ip);
 		return ;
 	}
@@ -284,7 +290,7 @@ void		nmap(char *target)
 		}
 	}
 	free(ports);
-	pcap_freealldevs(alldesvp);
+	free(dev_name);
 	free(target_ip);
 }
 
