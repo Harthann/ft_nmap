@@ -3,17 +3,18 @@
 /*
 ** Use of libpcap to get network interface available
 */
-pcap_if_t		*get_device(pcap_if_t **alldesvp)
+char		*get_device(void)
 {
+	char			*name;
+	pcap_if_t		*alldesvp, *tmp;
 	char			errbuf[PCAP_ERRBUF_SIZE];
-	pcap_if_t		*tmp;
-
-	if (pcap_findalldevs(alldesvp, errbuf) == PCAP_ERROR)
+	name = NULL;
+	if (pcap_findalldevs(&alldesvp, errbuf) == PCAP_ERROR)
 	{
 		fprintf(stderr, "%s: pcap_findalldevs: %s\n", prog_name, errbuf);
 		return NULL;
 	}
-	tmp = *alldesvp;
+	tmp = alldesvp;
 	while (tmp)
 	{
 		if (!(tmp->flags & PCAP_IF_LOOPBACK) && (tmp->flags & PCAP_IF_UP) &&
@@ -22,14 +23,17 @@ pcap_if_t		*get_device(pcap_if_t **alldesvp)
 			break ;
 		tmp = tmp->next;
 	}
-	return tmp;
+	if (tmp && !(name = strdup(tmp->name)))
+		fprintf(stderr, "%s: strdup: %s\n", prog_name, strerror(errno));
+	pcap_freealldevs(alldesvp);
+	return name;
 }
 
 /*
 ** Use of getifaddr to get our own ip address
 ** This is needed to fill ipv4 header
 */
-int			get_ipv4_addr(int *addr, pcap_if_t *dev)
+int			get_ipv4_addr(int *addr, char *name)
 {
 	int					ret;
 	struct ifaddrs		*ifap, *tmp;
@@ -44,9 +48,9 @@ int			get_ipv4_addr(int *addr, pcap_if_t *dev)
 	tmp = ifap;
 	while (tmp)
 	{
-		if (tmp->ifa_name && tmp->ifa_addr->sa_family == AF_INET && !strcmp(dev->name, tmp->ifa_name))
+		if (tmp->ifa_name && tmp->ifa_addr->sa_family == AF_INET && !strcmp(name, tmp->ifa_name))
 		{
-			printf("Suitable device '%s' found.\n", dev->name);
+			printf("Suitable device '%s' found.\n", name);
 			paddr = (struct sockaddr_in *)tmp->ifa_addr;
 			inet_pton(AF_INET, inet_ntoa(paddr->sin_addr), addr);
 			ret = EXIT_SUCCESS;

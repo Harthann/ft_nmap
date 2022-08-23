@@ -11,7 +11,7 @@ char *prog_name = NULL;
 */
 void		nmap(char *target, int portrange[2])
 {
-	pcap_if_t		*alldesvp, *dev;
+	char			*dev_name;
 	sockfd_t		socks;
 	uint32_t		dst_addr;
 	char			*target_ip;
@@ -30,15 +30,16 @@ void		nmap(char *target, int portrange[2])
 		free(target_ip);
 		return ;
 	}
-	dev = get_device(&alldesvp);
-	if (!dev)
+	dev_name = get_device();
+	if (!dev_name)
 	{
 		free(target_ip);
 		return ;
 	}
 	int on = 1;
 	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
-
+// ===
+// ===
 	struct sockaddr_in sockaddr;
 	sockaddr.sin_addr.s_addr = dst_addr;
 	sockaddr.sin_family = AF_INET;
@@ -56,16 +57,16 @@ void		nmap(char *target, int portrange[2])
 		.saddr = 0,
 		.daddr = dst_addr
 	};
-	if (get_ipv4_addr((int *)&iphdr.saddr, dev) == EXIT_FAILURE)
+	if (get_ipv4_addr((int *)&iphdr.saddr, dev_name) == EXIT_FAILURE)
 	{
-		pcap_freealldevs(alldesvp);
+		free(dev_name);
 		free(target_ip);
 		return ;
 	}
 	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, portrange[0], portrange[1]);
 	if (!ports)
 	{
-		pcap_freealldevs(alldesvp);
+		free(dev_name);
 		free(target_ip);
 		return ;
 	}
@@ -74,7 +75,6 @@ void		nmap(char *target, int portrange[2])
 	for (uint32_t i = 0; i < ((uint32_t)portrange[1] - portrange[0] + 1); i++)
 	{
 
-		printf("Print port number: %u\n", portrange[0] + i);
 		if (ports[i].status & STATUS_OPEN)
 		{
 			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
@@ -87,8 +87,9 @@ void		nmap(char *target, int portrange[2])
 				printf("unknown\n");
 		}
 	}
+
 	free(ports);
-	pcap_freealldevs(alldesvp);
+	free(dev_name);
 	free(target_ip);
 }
 

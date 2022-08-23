@@ -109,15 +109,14 @@ struct scan_s {
 #define CWR 0x01
 #endif
 
-
 /*=== PROTOTYPES ===*/
 
 /* scans/syn.c */
 t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, uint32_t port_start, uint32_t port_end);
 
 /* netutils.c */
-pcap_if_t		*get_device(pcap_if_t **alldesvp);
-int			get_ipv4_addr(int *addr, pcap_if_t *dev);
+char		*get_device(void);
+int			get_ipv4_addr(int *addr, char *name);
 char		*resolve_hostname(char *hostname);
 
 /* send.c */
