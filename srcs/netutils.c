@@ -3,34 +3,26 @@
 /*
 ** Use of libpcap to get network interface available
 */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 char		*get_device(void)
 {
-	char			*name;
-	pcap_if_t		*alldesvp, *tmp;
+	char			*name, *tmp;
 	char			errbuf[PCAP_ERRBUF_SIZE];
 
-	name = NULL;
-	alldesvp = NULL;
-	memset(errbuf, 0, sizeof(errbuf));
-	if (pcap_findalldevs(&alldesvp, errbuf) == PCAP_ERROR)
+	if (!(tmp = pcap_lookupdev(errbuf)))
 	{
-		fprintf(stderr, "%s: pcap_findalldevs: %s\n", prog_name, errbuf);
+		fprintf(stderr, "%s: pcap_lookupdev: %s\n", prog_name, errbuf);
 		return NULL;
 	}
-	tmp = alldesvp;
-	while (tmp)
+	if (!(name = strdup(tmp)))
 	{
-		if (!(tmp->flags & PCAP_IF_LOOPBACK) && (tmp->flags & PCAP_IF_UP) &&
-(tmp->flags & PCAP_IF_RUNNING) &&
-(tmp->flags & PCAP_IF_CONNECTION_STATUS) == PCAP_IF_CONNECTION_STATUS_CONNECTED)
-			break ;
-		tmp = tmp->next;
-	}
-	if (tmp && !(name = strdup(tmp->name)))
 		fprintf(stderr, "%s: strdup: %s\n", prog_name, strerror(errno));
-	pcap_freealldevs(alldesvp);
+		return NULL;
+	}
 	return name;
 }
+#pragma GCC diagnostic pop
 
 /*
 ** Use of getifaddr to get our own ip address
