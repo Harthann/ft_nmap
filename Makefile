@@ -54,7 +54,7 @@ OBJ		= ${addprefix ${OBJ_PATH}/, ${SRC_FILE:%.c=%.o}} \
 #		FLAGS		#
 #===================#
 
-FLAGS = -Wall -Werror -Wextra -MMD -MP 
+FLAGS = -Wall -Werror -Wextra -MMD -MP
 DEBUG = -g3
 SAN = -g3 -fsanitize=address
 OPT_FLAGS = -flto
@@ -73,7 +73,7 @@ all : $(NAME)
 
 $(NAME) : ${OBJ} 
 	@echo $(ECHO_FLAGS) "${vertclair}Creating ${NAME}"
-	@gcc ${FLAGS} ${OPT_FLAGS} -I includes/  ${OBJ} -o ${NAME}
+	@gcc ${FLAGS} ${OPT_FLAGS} -I includes/ ${OBJ} -o ${NAME} -lpcap
 	@echo $(ECHO_FLAGS) "${vertclair}[$(NAME) is ready]"
 
 debug: extend_flags re

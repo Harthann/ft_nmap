@@ -133,31 +133,66 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	return ports;
 }
 
+pcap_if_t		*get_device(pcap_if_t **alldesvp)
+{
+	char			errbuf[PCAP_ERRBUF_SIZE];
+	pcap_if_t		*tmp;
+
+	if (pcap_findalldevs(alldesvp, errbuf) == PCAP_ERROR)
+	{
+		fprintf(stderr, "%s: pcap_findalldevs: %s\n", prog_name, errbuf);
+		return NULL;
+	}
+	tmp = *alldesvp;
+	while (tmp)
+	{
+		if (!(tmp->flags & PCAP_IF_LOOPBACK) && (tmp->flags & PCAP_IF_UP) &&
+(tmp->flags & PCAP_IF_RUNNING) &&
+(tmp->flags & PCAP_IF_CONNECTION_STATUS) == PCAP_IF_CONNECTION_STATUS_CONNECTED)
+			break ;
+		tmp = tmp->next;
+	}
+	return tmp;
+}
+
 int			get_ipv4_addr(int *addr)
 {
-	struct sockaddr_in	*paddr;
+	int					ret;
+	pcap_if_t			*dev;
+	pcap_if_t			*alldesvp;
 	struct ifaddrs		*ifap, *tmp;
+	struct sockaddr_in	*paddr;
 
+	ret = EXIT_FAILURE;
+	dev = get_device(&alldesvp);
+	if (!dev)
+	{
+		fprintf(stderr, "No suitable device found.\n");
+		return EXIT_FAILURE;
+	}
 	if (getifaddrs(&ifap))
 	{
 		fprintf(stderr, "%s: getifaddrs: %s\n", prog_name, strerror(errno));
+		pcap_freealldevs(alldesvp);
 		return EXIT_FAILURE;
 	}
 	tmp = ifap;
 	while (tmp)
 	{
-		if (tmp->ifa_addr && tmp->ifa_addr->sa_family == AF_INET && !(tmp->ifa_flags & IFF_LOOPBACK))
+		if (tmp->ifa_name && tmp->ifa_addr->sa_family == AF_INET && !strcmp(dev->name, tmp->ifa_name))
 		{
+			printf("Suitable device '%s' found.\n", dev->name);
 			paddr = (struct sockaddr_in *)tmp->ifa_addr;
 			inet_pton(AF_INET, inet_ntoa(paddr->sin_addr), addr);
-			freeifaddrs(ifap);
-			return EXIT_SUCCESS;
+			ret = EXIT_SUCCESS;
 		}
 		tmp = tmp->ifa_next;
 	}
+	if (ret == EXIT_FAILURE)
+		fprintf(stderr, "No suitable device found.\n");
 	freeifaddrs(ifap);
-	fprintf(stderr, "%s: Can't find suitable device\n", prog_name);
-	return EXIT_FAILURE;
+	pcap_freealldevs(alldesvp);
+	return (ret);
 }
 
 char		*resolve_hostname(char *hostname)
@@ -222,7 +257,7 @@ void		nmap(char *target)
 		.saddr = 0,
 		.daddr = dst_addr
 	};
-	if (get_ipv4_addr((int *)&iphdr.saddr))
+	if (get_ipv4_addr((int *)&iphdr.saddr) == EXIT_FAILURE)
 	{
 		free(target_ip);
 		return ;
