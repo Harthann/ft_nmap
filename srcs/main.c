@@ -31,7 +31,6 @@ void dbg_dump_bytes(const void* data, size_t size) {
 			}
 		}
 	}
-
 }
 
 #include <linux/if_ether.h>

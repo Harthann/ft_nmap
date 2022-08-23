@@ -8,6 +8,7 @@
 # include <sys/time.h>
 # include <netdb.h>
 
+# include <netinet/if_ether.h>
 # include <netinet/in.h>
 # include <netinet/tcp.h>
 # include <netinet/udp.h>
@@ -30,6 +31,7 @@
 # include <unistd.h>
 
 # include <pcap.h>
+# include <pcap/sll.h>
 
 # include "logs.h"
 
