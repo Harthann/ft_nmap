@@ -154,6 +154,7 @@ void		nmap(char *target, int portrange[2])
 		return ;
 	}
 	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, portrange[0], portrange[1]);
+	free(ports);//TODO: move ?
 	struct sigaction sa;
 
 	memset(&sa, 0, sizeof(struct sigaction));
@@ -207,6 +208,7 @@ void		nmap(char *target, int portrange[2])
 		tmp = tmp->next;
 	}
 	free_scanlist(scanlist);
+	pcap_freecode(&fp);
 	pcap_close(handle);
 	free(dev_name);
 	free(target_ip);

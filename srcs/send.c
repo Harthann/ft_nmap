@@ -43,6 +43,7 @@ int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, i
 		return EXIT_FAILURE;
 
 	}
+	free(buffer);
 	return EXIT_SUCCESS;
 }
 
