@@ -2,6 +2,24 @@
 #include "args.h"
 
 char *prog_name = NULL;
+pcap_t	*handle = NULL;
+
+void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+{
+	(void)args;
+	(void)pkthdr;
+	(void)packet;
+	static int count = 1;
+	fprintf(stdout, "%3d, ", count);
+	fflush(stdout);
+	count++;
+}
+
+void		terminate_pcap(int signum)
+{
+	(void)signum;
+	pcap_breakloop(handle);
+}
 
 /*
 ** Target is a string containing either the ip or the domain name of the target
@@ -40,10 +58,11 @@ void		nmap(char *target, int portrange[2])
 	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
 // ===
 // ===
-	struct sockaddr_in sockaddr;
-	sockaddr.sin_addr.s_addr = dst_addr;
-	sockaddr.sin_family = AF_INET;
-	sockaddr.sin_port = 0;
+//	struct sockaddr_in sockaddr;
+//	sockaddr.sin_addr.s_addr = dst_addr;
+//	sockaddr.sin_family = AF_INET;
+//	sockaddr.sin_port = 0;
+	(void)portrange;
 	struct iphdr	iphdr = {
 		.version = 4,
 		.ihl = sizeof(struct iphdr) / sizeof(uint32_t),
@@ -63,6 +82,48 @@ void		nmap(char *target, int portrange[2])
 		free(target_ip);
 		return ;
 	}
+	char	errbuf[PCAP_ERRBUF_SIZE];
+	bpf_u_int32 mask;
+	bpf_u_int32 net;
+
+	if (pcap_lookupnet(dev_name, &net, &mask, errbuf) == PCAP_ERROR) {
+		fprintf(stderr, "%s: pcap_loopkupnet: %s\n", prog_name, errbuf);
+		net = 0;
+		mask = 0;
+	}
+	handle = pcap_open_live(dev_name, 1024, 1, 1000, errbuf);
+	if (!handle)
+	{
+		fprintf(stderr, "%s: pcap_open_live: %s\n", prog_name, errbuf);
+		free(dev_name);
+		free(target_ip);
+		return ;
+	}
+	struct bpf_program fp;
+	char filter_exp[] = "port 22";
+	if (pcap_compile(handle, &fp, filter_exp, 0, net) == PCAP_ERROR) {
+		fprintf(stderr, "%s: pcap_compile: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
+		return ;
+	}
+	if (pcap_setfilter(handle, &fp) == PCAP_ERROR) {
+		fprintf(stderr, "%s: pcap_setfilter: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
+		return ;
+	}
+	struct sigaction sa;
+
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = &terminate_pcap;
+	sigaction(SIGALRM, &sa, NULL);
+	alarm(10);
+	int ret = pcap_dispatch(handle, -1, my_callback, NULL);
+	if (ret == PCAP_ERROR)
+		printf("error\n");
+	else if (ret == PCAP_ERROR_BREAK)
+		printf("error break\n");
+	else
+		printf("all fine\n");
+	pcap_close(handle);
+	/*
 	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, portrange[0], portrange[1]);
 	if (!ports)
 	{
@@ -89,6 +150,7 @@ void		nmap(char *target, int portrange[2])
 	}
 
 	free(ports);
+	*/
 	free(dev_name);
 	free(target_ip);
 }
