@@ -75,55 +75,17 @@ int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb
 	return EXIT_SUCCESS;
 }
 
-
-/*
-** Perform a full Syn scan given a socket and a range of ports
-** Will call sendto defined in send.c with the flag SYN
-** Then call recv_syn to read interesting reponse only
-*/
-t_port_status	*scan_syn(char *dev, int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, uint32_t port_start, uint32_t port_end)
+void			start_capture(int sockfd, struct sockaddr_in *sockaddr,  struct iphdr *iphdr, bpf_u_int32 net, int port_start, int port_end) // THREAD ?
 {
-	char	errbuf[PCAP_ERRBUF_SIZE];
 	struct pollfd		fds[1];
-	uint32_t			nb_ports;
-	t_port_status		*ports;
-	bpf_u_int32			mask;
-	bpf_u_int32			net;
+	int		nb_ports;
 
-	if (pcap_lookupnet(dev, &net, &mask, errbuf) == PCAP_ERROR) {
-		fprintf(stderr, "%s: pcap_loopkupnet: %s\n", prog_name, errbuf);
-		net = 0;
-		mask = 0;
-	}
-	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
-	if (!handle)
-	{
-		fprintf(stderr, "%s: pcap_open_live: %s\n", prog_name, errbuf);
-		return NULL;
-	}
-	struct sigaction sa;
-
-	memset(&sa, 0, sizeof(struct sigaction));
-	sigemptyset(&sa.sa_mask);
-	sa.sa_handler = &terminate_pcap;
-	sigaction(SIGALRM, &sa, NULL);
-	alarm(5);
-	printf("pcap open\n");
 	nb_ports = (port_end - port_start) + 1;
-	ports = calloc(nb_ports, sizeof(t_port_status));
-	if (!ports)
-	{
-		fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
-		pcap_close(handle);
-		return NULL;
-	}
-	for (uint32_t i = 0; i < port_end - port_start - 1; i++)
-		ports[i].port = port_start + i;
 	memset(fds, 0, sizeof(fds));
 	fds[0].fd = sockfd;
 	fds[0].events = POLLOUT | POLLERR;
 
-	uint32_t i = port_start;
+	int i = port_start;
 	while (true)
 	{
 		int res = poll(fds, 1, 1000);
@@ -149,11 +111,11 @@ t_port_status	*scan_syn(char *dev, int sockfd, struct sockaddr_in *sockaddr, str
 	sprintf(filter_exp, "ip host %s and (tcp  and portrange %d-%d or icmp)", inet_ntoa(daddr), port_start, port_end);
 	if (pcap_compile(handle, &fp, filter_exp, 0, net) == PCAP_ERROR) {
 		fprintf(stderr, "%s: pcap_compile: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
-		return NULL; // TODO: free ?
+		return ; // TODO: free ?
 	}
 	if (pcap_setfilter(handle, &fp) == PCAP_ERROR) {
 		fprintf(stderr, "%s: pcap_setfilter: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
-		return NULL; // TODO: free ?
+		return ; // TODO: free ?
 	}
 
 	while (1) {
@@ -170,6 +132,46 @@ t_port_status	*scan_syn(char *dev, int sockfd, struct sockaddr_in *sockaddr, str
 			printf("all fine\n");
 		}
 	}
+	pcap_freecode(&fp);
+}
+
+/*
+** Perform a full Syn scan given a socket and a range of ports
+** Will call sendto defined in send.c with the flag SYN
+** Then call recv_syn to read interesting reponse only
+*/
+t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, uint32_t port_start, uint32_t port_end)
+{
+	char	errbuf[PCAP_ERRBUF_SIZE];
+	uint32_t			nb_ports;
+	t_port_status		*ports;
+
+	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
+	if (!handle)
+	{
+		fprintf(stderr, "%s: pcap_open_live: %s\n", prog_name, errbuf);
+		return NULL;
+	}
+	struct sigaction sa;
+
+	memset(&sa, 0, sizeof(struct sigaction));
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = &terminate_pcap;
+	sigaction(SIGALRM, &sa, NULL);
+	alarm(5);
+
+	nb_ports = (port_end - port_start) + 1;
+	ports = calloc(nb_ports, sizeof(t_port_status));
+	if (!ports)
+	{
+		fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
+		pcap_close(handle);
+		return NULL;
+	}
+	for (uint32_t i = 0; i < port_end - port_start - 1; i++)
+		ports[i].port = port_start + i;
+	// TODO: pthread here ?
+	start_capture(sockfd, sockaddr, iphdr, net, port_start, port_end);
 	struct scan_s *tmp;
 
 	tmp = scanlist;
@@ -194,7 +196,6 @@ t_port_status	*scan_syn(char *dev, int sockfd, struct sockaddr_in *sockaddr, str
 		tmp = tmp->next;
 	}
 	free_scanlist(scanlist);
-	pcap_freecode(&fp);
 	pcap_close(handle);
 	return ports;
 }

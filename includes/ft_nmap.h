@@ -115,7 +115,7 @@ struct scan_s {
 /*=== PROTOTYPES ===*/
 
 /* scans/syn.c */
-t_port_status	*scan_syn(char *dev, int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, uint32_t port_start, uint32_t port_end);
+t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, uint32_t port_start, uint32_t port_end);
 
 /* netutils.c */
 char		*get_device(void);

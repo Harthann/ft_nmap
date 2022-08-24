@@ -64,7 +64,16 @@ void		nmap(char *target, int portrange[2])
 		free(target_ip);
 		return ;
 	}
-	t_port_status *ports = scan_syn(dev_name, socks.sockfd_tcp, &sockaddr, &iphdr, portrange[0], portrange[1]);
+	char	errbuf[PCAP_ERRBUF_SIZE];
+	bpf_u_int32			mask;
+	bpf_u_int32			net;
+
+	if (pcap_lookupnet(dev_name, &net, &mask, errbuf) == PCAP_ERROR) {
+		fprintf(stderr, "%s: pcap_loopkupnet: %s\n", prog_name, errbuf);
+		net = 0;
+		mask = 0;
+	}
+	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, portrange[0], portrange[1]);
 
 	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
 	printf("PORT      STATUS            SERVICE\n");
