@@ -73,7 +73,7 @@ all : $(NAME)
 
 $(NAME) : ${OBJ} 
 	@echo $(ECHO_FLAGS) "${vertclair}Creating ${NAME}"
-	@gcc ${FLAGS} ${OPT_FLAGS} -I includes/ ${OBJ} -o ${NAME} -lpcap
+	@gcc ${FLAGS} ${OPT_FLAGS} -I includes/ ${OBJ} -o ${NAME} -lpcap -lpthread
 	@echo $(ECHO_FLAGS) "${vertclair}[$(NAME) is ready]"
 
 debug: extend_flags re
