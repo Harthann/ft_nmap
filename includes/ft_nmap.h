@@ -55,9 +55,10 @@ extern char *prog_name;
 
 /*=== STRUCTURES ===*/
 typedef struct scanconf_s {
-	int		types;
-	char	**targets;
-	int		portrange[2];
+	int			types;
+	char		**targets;
+	uint32_t	*portrange;
+	uint32_t	nb_ports;
 }	scanconf_t;
 
 
@@ -126,7 +127,7 @@ struct pcap_t_handlers {
 /*=== PROTOTYPES ===*/
 
 /* scans/syn.c */
-t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, uint32_t port_start, uint32_t port_end);
+t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, uint32_t *portrange, uint32_t nb_ports);
 
 /* netutils.c */
 char		*get_device(void);

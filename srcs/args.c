@@ -40,8 +40,8 @@ void	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 			break ;
 		case 3:
 			printf("FOund ports range\n");
-			config->portrange[0] = atoi(ft_optarg);
-			config->portrange[1] = atoi(strchr(ft_optarg, '-') + 1);
+			//config->portrange[0] = atoi(ft_optarg);
+			//config->portrange[1] = atoi(strchr(ft_optarg, '-') + 1);
 			return ;
 		case 4:
 			TODO("option scan");
@@ -87,6 +87,12 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 		printf("Error: Missing argument\n");
 		print_help(options_descriptor);
 		return EXIT_FAILURE;
+	}
+	if (config->portrange == NULL) {
+		config->portrange = malloc(sizeof(uint32_t) * 1024);
+		for (uint32_t i = 0; i < 1024; i++)
+			config->portrange[i] = i;
+		config->nb_ports = 1024;
 	}
 	printf("Port range: %d %d\n", config->portrange[0], config->portrange[1]);
 	config->targets = g_arglist;

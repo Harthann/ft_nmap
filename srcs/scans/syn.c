@@ -3,7 +3,6 @@
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 struct pcap_t_handlers	*handlers = NULL;
 struct scan_s			*scanlist = NULL;
-
 void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet)
 {
 	(void)args;
@@ -40,54 +39,54 @@ void		terminate_pcap(int signum)
 **			Rst/Ack: Port close
 **			No response: Filtered
 */
-int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb_port)
-{
-	void					*buffer;
-	int						len;
-	struct tcphdr			*tcphdr;
-//	struct iphdr			*iphdr_rcv;
-
-	len = sizeof(struct iphdr) + sizeof(struct tcphdr) + DATA_LEN;
-	buffer = malloc(len);
-	if (!buffer)
-		return -ENOMEM;
-
-	if (recvfrom(sockfd, buffer, len, 0, NULL, NULL) < 0)
-	{
-		free(buffer);
-		fprintf(stderr, "recvfrom: %s\n", strerror(errno));
-		free(buffer);
-		return EXIT_FAILURE;
-	}
-
-//	iphdr_rcv = buffer;
-
-/*
-** Perform a check if the response correspond to one of our scan
-** If so check the responses flag and print scan result
-*/
-	tcphdr = buffer + sizeof(struct iphdr);
-	if (find_scan(buffer, scanlist)) {
-		if (TCP_FLAG(tcphdr) == (SYN | ACK))
-		{
-			for (int i = 0; i < nb_port; i++)
-			{
-				if (ports[i].port == htons(tcphdr->source))
-					ports[i].flags = OPEN;
-			}
-		}
-	}
-	free(buffer);
-	return EXIT_SUCCESS;
-}
+//int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb_port)
+//{
+//	void					*buffer;
+//	int						len;
+//	struct tcphdr			*tcphdr;
+////	struct iphdr			*iphdr_rcv;
+//
+//	len = sizeof(struct iphdr) + sizeof(struct tcphdr) + DATA_LEN;
+//	buffer = malloc(len);
+//	if (!buffer)
+//		return -ENOMEM;
+//
+//	if (recvfrom(sockfd, buffer, len, 0, NULL, NULL) < 0)
+//	{
+//		free(buffer);
+//		fprintf(stderr, "recvfrom: %s\n", strerror(errno));
+//		free(buffer);
+//		return EXIT_FAILURE;
+//	}
+//
+////	iphdr_rcv = buffer;
+//
+///*
+//** Perform a check if the response correspond to one of our scan
+//** If so check the responses flag and print scan result
+//*/
+//	tcphdr = buffer + sizeof(struct iphdr);
+//	if (find_scan(buffer, scanlist)) {
+//		if (TCP_FLAG(tcphdr) == (SYN | ACK))
+//		{
+//			for (uint32_t i = 0; i < nb_port; i++)
+//			{
+//				if (ports[i].port == htons(tcphdr->source))
+//					ports[i].flags = OPEN;
+//			}
+//		}
+//	}
+//	free(buffer);
+//	return EXIT_SUCCESS;
+//}
 
 typedef struct	s_args {
 	int					sockfd;
 	struct sockaddr_in	*sockaddr;
 	struct iphdr		*iphdr;
 	bpf_u_int32			net;
-	int					port_start;
-	int					port_end;
+	uint32_t			*portrange;
+	uint32_t			nb_ports;
 }				t_args;
 
 void		*start_capture(void *arg) // THREAD ?
@@ -111,28 +110,28 @@ void		*start_capture(void *arg) // THREAD ?
 		// TODO: problem !
 	}
 	struct pollfd		fds[1];
-	int		nb_ports;
+	//int		nb_ports;
 
-	nb_ports = (args->port_end - args->port_start) + 1;
+	//nb_ports = (args->port_end - args->port_start) + 1;
 	memset(fds, 0, sizeof(fds));
 	fds[0].fd = args->sockfd;
 	fds[0].events = POLLOUT | POLLERR;
 
-	int i = args->port_start;
+	uint32_t i = 0;
 	while (true)
 	{
 		int res = poll(fds, 1, 1000);
 		if (res > 0)
 		{
-			if (fds[0].revents & POLLOUT && i <= args->port_end)
+			if (fds[0].revents & POLLOUT && i <= args->nb_ports)
 			{
-				int ret = send_tcp4(args->sockfd, args->sockaddr, args->iphdr, i++, SYN);
+				int ret = send_tcp4(args->sockfd, args->sockaddr, args->iphdr, args->portrange[i++], SYN);
 				if (ret == -ENOMEM)
 					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 				else if (ret == EXIT_FAILURE)
 					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
 			}
-			else if (i > nb_ports && fds[0].revents & POLLOUT)
+			else if (i > args->nb_ports && fds[0].revents & POLLOUT)
 				fds[0].events = POLLERR;
 		}
 		else if (!res)
@@ -141,7 +140,8 @@ void		*start_capture(void *arg) // THREAD ?
 	struct bpf_program fp;
 	struct in_addr daddr = {.s_addr = args->iphdr->saddr};
 	char filter_exp[256];
-	sprintf(filter_exp, "ip host %s and (tcp  and portrange %d-%d or icmp)", inet_ntoa(daddr), args->port_start, args->port_end);
+/* Removed portrange from filter since we don't have linear range now */
+	sprintf(filter_exp, "ip host %s and (tcp or icmp)", inet_ntoa(daddr));
 	if (pcap_compile(handle, &fp, filter_exp, 0, args->net) == PCAP_ERROR) {
 		fprintf(stderr, "%s: pcap_compile: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
 		return (NULL); // TODO: free ?
@@ -174,12 +174,10 @@ void		*start_capture(void *arg) // THREAD ?
 ** Will call sendto defined in send.c with the flag SYN
 ** Then call recv_syn to read interesting reponse only
 */
-t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, uint32_t port_start, uint32_t port_end)
+t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, uint32_t *portrange, uint32_t nb_ports)
 {
-	uint32_t			nb_ports;
 	t_port_status		*ports;
 
-	nb_ports = (port_end - port_start) + 1;
 	ports = calloc(nb_ports, sizeof(t_port_status));
 	if (!ports)
 	{
@@ -188,7 +186,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	}
 	for (uint32_t i = 0; i < nb_ports; i++)
 	{
-		ports[i].port = port_start + i;
+		ports[i].port = portrange[i];
 		ports[i].flags = SET_FILTER | SET_ACCESS;
 	}
 	struct sigaction sa;
@@ -204,7 +202,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		//TODO: problem
 	}
 	pthread_t		threadid[2];
-	int test = port_end / 2;
+	//int test = port_end / 2;
 	for (int i = 0; i < 2; i++)
 	{
 		t_args	args = {
@@ -212,12 +210,12 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 			.sockaddr = sockaddr,
 			.iphdr = iphdr,
 			.net = net,
-			.port_start = port_start,
-			.port_end = test
+			.portrange = portrange + (i * nb_ports / 2),
+			.nb_ports = nb_ports / 2
 		};
 		pthread_create(&threadid[i], NULL, start_capture, &args); // TODO: check return
-		port_start = test + 1;
-		test *= 2;
+		//port_start = test + 1;
+		//test *= 2;
 	}
 	for (int i = 0; i < 2; i++)
 		pthread_join(threadid[i], NULL); // TODO: check return

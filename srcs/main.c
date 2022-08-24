@@ -9,7 +9,7 @@ char				*prog_name = NULL;
 ** Performuing ports[1] - ports[0] should give the number of ports
 ** This number should lend between 1 and 1024
 */
-void		nmap(char *target, int portrange[2])
+void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 {
 	char			*dev_name;
 	sockfd_t		socks;
@@ -73,11 +73,11 @@ void		nmap(char *target, int portrange[2])
 		net = 0;
 		mask = 0;
 	}
-	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, portrange[0], portrange[1]);
+	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, portrange, nb_ports);
 
 	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
 	printf("PORT      STATUS            SERVICE\n");
-	for (int i = 0; i < (portrange[1] - portrange[0]) + 1; i++)
+	for (uint32_t i = 0; i < nb_ports; i++)
 	{
 		if (ports[i].flags & SET_ACCESS || ports[i].flags & SET_FILTER)
 		{
@@ -88,8 +88,7 @@ void		nmap(char *target, int portrange[2])
 			int		m = 0;
 			if (ports[i].flags & SET_ACCESS)
 			{
-				if (ports[i].flags & OPEN)
-					printf("open%n", &n);
+				if (ports[i].flags & OPEN) printf("open%n", &n);
 				else
 					printf("close%n", &n);
 			}
@@ -136,7 +135,7 @@ int			main(int ac, char **av)
 	scanconf_t	config = {
 		.types = -1,
 		.targets = NULL,
-		.portrange = {1, 1024},
+		.portrange = NULL
 	};
 
 	/*
@@ -167,7 +166,7 @@ int			main(int ac, char **av)
 	** For each ip found inside arguments we'll perform a scan
 	*/
 	for (size_t i = 0; config.targets[i]; i++)
-		nmap(config.targets[i], config.portrange);
+		nmap(config.targets[i], config.portrange, config.nb_ports);
 
 	free(prog_name);
 	return EXIT_SUCCESS;
