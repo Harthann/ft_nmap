@@ -1,30 +1,33 @@
 #include "ft_nmap.h"
 
-pcap_t				*handle = NULL;
-struct scan_s		*scanlist = NULL;
+struct pcap_t_handlers	*handlers = NULL;
+struct scan_s			*scanlist = NULL;
 
-void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet)
 {
 	(void)args;
 	(void)pkthdr;
-	(void)packet;
-	static int count = 1;
 	struct iphdr *ip = (struct iphdr*)(packet + sizeof(struct sll_header));
 
 	struct in_addr saddr = {.s_addr = ip->saddr};
 	struct in_addr daddr = {.s_addr = ip->daddr};
 	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
 	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
+	// TODO: error and mutex
 	scanlist = new_scanentry(scanlist, (void *)packet + sizeof(struct sll_header));
-	//fprintf(stdout, "%3d, ", count);
-	//fflush(stdout);
-	count++;
 }
 
 void		terminate_pcap(int signum)
 {
+	struct pcap_t_handlers *tmp;
+
 	(void)signum;
-	pcap_breakloop(handle);
+	tmp = handlers;
+	while (tmp)
+	{
+		pcap_breakloop(tmp->handle);
+		tmp = tmp->next;
+	}
 }
 
 /*
@@ -77,12 +80,20 @@ int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb
 
 void			start_capture(int sockfd, struct sockaddr_in *sockaddr,  struct iphdr *iphdr, bpf_u_int32 net, int port_start, int port_end) // THREAD ?
 {
+	pcap_t		*handle;
+
 	char	errbuf[PCAP_ERRBUF_SIZE];
 	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
 	if (!handle)
 	{
 		fprintf(stderr, "%s: pcap_open_live: %s\n", prog_name, errbuf);
 		return ;
+	}
+	// TODO: mutex and error on new_handlerentry
+	handlers = new_handlerentry(handlers, handle);
+	if (!handlers)
+	{
+		// TODO: problem !
 	}
 	struct pollfd		fds[1];
 	int		nb_ports;
@@ -199,6 +210,6 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		tmp = tmp->next;
 	}
 	free_scanlist(scanlist);
-	pcap_close(handle);
+	free_handlers(handlers);
 	return ports;
 }
