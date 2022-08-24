@@ -77,6 +77,13 @@ int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb
 
 void			start_capture(int sockfd, struct sockaddr_in *sockaddr,  struct iphdr *iphdr, bpf_u_int32 net, int port_start, int port_end) // THREAD ?
 {
+	char	errbuf[PCAP_ERRBUF_SIZE];
+	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
+	if (!handle)
+	{
+		fprintf(stderr, "%s: pcap_open_live: %s\n", prog_name, errbuf);
+		return ;
+	}
 	struct pollfd		fds[1];
 	int		nb_ports;
 
@@ -142,16 +149,18 @@ void			start_capture(int sockfd, struct sockaddr_in *sockaddr,  struct iphdr *ip
 */
 t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, uint32_t port_start, uint32_t port_end)
 {
-	char	errbuf[PCAP_ERRBUF_SIZE];
 	uint32_t			nb_ports;
 	t_port_status		*ports;
 
-	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
-	if (!handle)
+	nb_ports = (port_end - port_start) + 1;
+	ports = calloc(nb_ports, sizeof(t_port_status));
+	if (!ports)
 	{
-		fprintf(stderr, "%s: pcap_open_live: %s\n", prog_name, errbuf);
+		fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 		return NULL;
 	}
+	for (uint32_t i = 0; i < port_end - port_start - 1; i++)
+		ports[i].port = port_start + i;
 	struct sigaction sa;
 
 	memset(&sa, 0, sizeof(struct sigaction));
@@ -159,17 +168,6 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	sa.sa_handler = &terminate_pcap;
 	sigaction(SIGALRM, &sa, NULL);
 	alarm(5);
-
-	nb_ports = (port_end - port_start) + 1;
-	ports = calloc(nb_ports, sizeof(t_port_status));
-	if (!ports)
-	{
-		fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
-		pcap_close(handle);
-		return NULL;
-	}
-	for (uint32_t i = 0; i < port_end - port_start - 1; i++)
-		ports[i].port = port_start + i;
 	// TODO: pthread here ?
 	start_capture(sockfd, sockaddr, iphdr, net, port_start, port_end);
 	struct scan_s *tmp;
@@ -199,4 +197,3 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	pcap_close(handle);
 	return ports;
 }
-
