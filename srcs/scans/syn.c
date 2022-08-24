@@ -99,6 +99,7 @@ void		*start_capture(void *arg) // THREAD ?
 	if (!handle)
 	{
 		fprintf(stderr, "%s: pcap_open_live: %s\n", prog_name, errbuf);
+		free(args);
 		return (NULL);
 	}
 	// TODO: mutex and error on new_handlerentry
@@ -144,10 +145,14 @@ void		*start_capture(void *arg) // THREAD ?
 	sprintf(filter_exp, "ip host %s and (tcp or icmp)", inet_ntoa(daddr));
 	if (pcap_compile(handle, &fp, filter_exp, 0, args->net) == PCAP_ERROR) {
 		fprintf(stderr, "%s: pcap_compile: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
+		pcap_freecode(&fp);
+		free(args);
 		return (NULL); // TODO: free ?
 	}
 	if (pcap_setfilter(handle, &fp) == PCAP_ERROR) {
 		fprintf(stderr, "%s: pcap_setfilter: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
+		pcap_freecode(&fp);
+		free(args);
 		return (NULL); // TODO: free ?
 	}
 
@@ -166,6 +171,7 @@ void		*start_capture(void *arg) // THREAD ?
 		}
 	}
 	pcap_freecode(&fp);
+	free(args);
 	return (NULL);
 }
 
