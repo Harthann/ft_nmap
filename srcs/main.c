@@ -73,7 +73,8 @@ void		nmap(char *target, int portrange[2])
 		net = 0;
 		mask = 0;
 	}
-	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, portrange[0], portrange[1]);
+	//t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, portrange[0], portrange[1]);
+	t_port_status *ports = scan_xmas(socks.sockfd_tcp, &sockaddr, &iphdr, net, portrange[0], portrange[1]);
 
 	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
 	printf("PORT      STATUS            SERVICE\n");
