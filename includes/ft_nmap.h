@@ -82,6 +82,14 @@ struct scan_s {
 	struct scan_s	*next;
 };
 
+/*
+** Pcap handler list for every thread
+*/
+struct pcap_t_handlers {
+	pcap_t					*handle;
+	struct pcap_t_handlers	*next;
+};
+
 
 /*=== MACROS ===*/
 
@@ -132,6 +140,11 @@ struct scan_s	*new_scanentry(struct scan_s *head, void *buffer);
 void			print_scanlist(struct scan_s *scanlist);
 void			free_scanlist(struct scan_s *scanlist);
 bool			find_scan(void* buffer, struct scan_s *scanlist);
+
+
+/* pcap_handlers.c */
+struct pcap_t_handlers *new_handlerentry(struct pcap_t_handlers *head, pcap_t *handle);
+void	free_handlers(struct pcap_t_handlers *handlers);
 
 /* checksum.c */
 int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len, uint16_t *sum);

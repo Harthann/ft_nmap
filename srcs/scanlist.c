@@ -2,7 +2,7 @@
 
 /*
 ** Add a new entry to the list of scans sended
-** Will return a non modified list if allocaiton fail
+** Will return a non modified list if allocation fail
 ** Return the new head of the list
 */
 struct scan_s *new_scanentry(struct scan_s *head, void *buffer)
