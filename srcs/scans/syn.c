@@ -7,12 +7,12 @@ void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* 
 {
 	(void)args;
 	(void)pkthdr;
-	struct iphdr *ip = (struct iphdr*)(packet + sizeof(struct sll_header));
+//	struct iphdr *ip = (struct iphdr*)(packet + sizeof(struct sll_header));
 
-	struct in_addr saddr = {.s_addr = ip->saddr};
-	struct in_addr daddr = {.s_addr = ip->daddr};
-	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
-	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
+//	struct in_addr saddr = {.s_addr = ip->saddr};
+//	struct in_addr daddr = {.s_addr = ip->daddr};
+//	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
+//	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
 	// TODO: error and mutex
 	pthread_mutex_lock(&mutex);
 	scanlist = new_scanentry(scanlist, (void *)packet + sizeof(struct sll_header));
@@ -187,7 +187,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	for (uint32_t i = 0; i < nb_ports; i++)
 	{
 		ports[i].port = portrange[i];
-		ports[i].flags = SET_FILTER | SET_ACCESS;
+		ports[i].flags = SET_FILTER | FILTERED;
 	}
 	struct sigaction sa;
 
@@ -203,17 +203,18 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	}
 	pthread_t		threadid[2];
 	//int test = port_end / 2;
+	t_args *args;
 	for (int i = 0; i < 2; i++)
 	{
-		t_args	args = {
-			.sockfd = sockfd,
-			.sockaddr = sockaddr,
-			.iphdr = iphdr,
-			.net = net,
-			.portrange = portrange + (i * nb_ports / 2),
-			.nb_ports = nb_ports / 2
-		};
-		pthread_create(&threadid[i], NULL, start_capture, &args); // TODO: check return
+		args = malloc(sizeof(t_args));
+		args->sockfd = sockfd;
+		args->sockaddr = sockaddr;
+		args->iphdr = iphdr;
+		args->net = net;
+		args->portrange = portrange + (i * nb_ports / 2);
+		args->nb_ports = nb_ports / 2;
+	//	start_capture(&args);
+		pthread_create(&threadid[i], NULL, start_capture, args); // TODO: check return
 		//port_start = test + 1;
 		//test *= 2;
 	}
@@ -226,6 +227,10 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	struct scan_s *tmp;
 
 	tmp = scanlist;
+	int count = 0;
+	for (struct scan_s *tmp2 = tmp; tmp2; tmp2 = tmp2->next)
+		count++;
+	printf("%d\n", count);
 	while (tmp)
 	{
 		struct iphdr		*iphdr;
@@ -235,6 +240,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		if (iphdr->protocol == IPPROTO_TCP)
 		{
 			tcphdr = tmp->packet + sizeof(struct iphdr);
+			printf("TCP:{%d %d}\n", htons(tcphdr->source), TCP_FLAG(tcphdr));
 			for (uint32_t i = 0; i < nb_ports; i++)
 			{
 				if (ports[i].port == htons(tcphdr->source))

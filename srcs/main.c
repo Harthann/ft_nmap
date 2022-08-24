@@ -64,6 +64,7 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 		free(target_ip);
 		return ;
 	}
+
 	char	errbuf[PCAP_ERRBUF_SIZE];
 	bpf_u_int32			mask;
 	bpf_u_int32			net;
@@ -94,7 +95,7 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 			}
 			if (ports[i].flags & SET_FILTER)
 			{
-				if (n)
+				if (ports[i].flags & SET_ACCESS)
 				{
 					printf("|");
 					n++;
