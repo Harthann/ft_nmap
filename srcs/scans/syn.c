@@ -159,8 +159,11 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 		return NULL;
 	}
-	for (uint32_t i = 0; i < port_end - port_start - 1; i++)
+	for (uint32_t i = 0; i < nb_ports; i++)
+	{
 		ports[i].port = port_start + i;
+		ports[i].flags = SET_FILTER | SET_ACCESS;
+	}
 	struct sigaction sa;
 
 	memset(&sa, 0, sizeof(struct sigaction));
@@ -182,12 +185,14 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		if (iphdr->protocol == IPPROTO_TCP)
 		{
 			tcphdr = tmp->packet + sizeof(struct iphdr);
-			if (TCP_FLAG(tcphdr) == (SYN | ACK))
+			for (uint32_t i = 0; i < nb_ports; i++)
 			{
-				for (uint32_t i = 0; i < nb_ports; i++)
+				if (ports[i].port == htons(tcphdr->source))
 				{
-					if (ports[i].port == htons(tcphdr->source))
+					if (TCP_FLAG(tcphdr) == (SYN | ACK))
 						ports[i].flags = SET_ACCESS | OPEN;
+					else
+						ports[i].flags = SET_ACCESS | CLOSE;
 				}
 			}
 		}
