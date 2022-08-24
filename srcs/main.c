@@ -44,7 +44,6 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 	sockaddr.sin_addr.s_addr = dst_addr;
 	sockaddr.sin_family = AF_INET;
 	sockaddr.sin_port = 0;
-	(void)portrange;
 	struct iphdr	iphdr = {
 		.version = 4,
 		.ihl = sizeof(struct iphdr) / sizeof(uint32_t),
@@ -168,7 +167,7 @@ int			main(int ac, char **av)
 	*/
 	for (size_t i = 0; config.targets[i]; i++)
 		nmap(config.targets[i], config.portrange, config.nb_ports);
-
+	free(config.portrange);
 	free(prog_name);
 	return EXIT_SUCCESS;
 }

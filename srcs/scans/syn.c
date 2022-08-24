@@ -124,7 +124,7 @@ void		*start_capture(void *arg) // THREAD ?
 		int res = poll(fds, 1, 1000);
 		if (res > 0)
 		{
-			if (fds[0].revents & POLLOUT && i <= args->nb_ports)
+			if (fds[0].revents & POLLOUT && i < args->nb_ports)
 			{
 				int ret = send_tcp4(args->sockfd, args->sockaddr, args->iphdr, args->portrange[i++], SYN);
 				if (ret == -ENOMEM)
@@ -132,7 +132,7 @@ void		*start_capture(void *arg) // THREAD ?
 				else if (ret == EXIT_FAILURE)
 					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
 			}
-			else if (i > args->nb_ports && fds[0].revents & POLLOUT)
+			else if (i >= args->nb_ports && fds[0].revents & POLLOUT)
 				fds[0].events = POLLERR;
 		}
 		else if (!res)
@@ -233,10 +233,6 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	struct scan_s *tmp;
 
 	tmp = scanlist;
-	int count = 0;
-	for (struct scan_s *tmp2 = tmp; tmp2; tmp2 = tmp2->next)
-		count++;
-	printf("%d\n", count);
 	while (tmp)
 	{
 		struct iphdr		*iphdr;
@@ -246,7 +242,6 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		if (iphdr->protocol == IPPROTO_TCP)
 		{
 			tcphdr = tmp->packet + sizeof(struct iphdr);
-			printf("TCP:{%d %d}\n", htons(tcphdr->source), TCP_FLAG(tcphdr));
 			for (uint32_t i = 0; i < nb_ports; i++)
 			{
 				if (ports[i].port == htons(tcphdr->source))
