@@ -1,7 +1,7 @@
 #include "ft_nmap.h"
 #include "args.h"
 
-char *prog_name = NULL;
+char				*prog_name = NULL;
 
 /*
 ** Target is a string containing either the ip or the domain name of the target
@@ -44,6 +44,7 @@ void		nmap(char *target, int portrange[2])
 	sockaddr.sin_addr.s_addr = dst_addr;
 	sockaddr.sin_family = AF_INET;
 	sockaddr.sin_port = 0;
+	(void)portrange;
 	struct iphdr	iphdr = {
 		.version = 4,
 		.ihl = sizeof(struct iphdr) / sizeof(uint32_t),
@@ -63,31 +64,55 @@ void		nmap(char *target, int portrange[2])
 		free(target_ip);
 		return ;
 	}
-	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, portrange[0], portrange[1]);
-	if (!ports)
-	{
-		free(dev_name);
-		free(target_ip);
-		return ;
+	char	errbuf[PCAP_ERRBUF_SIZE];
+	bpf_u_int32			mask;
+	bpf_u_int32			net;
+
+	if (pcap_lookupnet(dev_name, &net, &mask, errbuf) == PCAP_ERROR) {
+		fprintf(stderr, "%s: pcap_loopkupnet: %s\n", prog_name, errbuf);
+		net = 0;
+		mask = 0;
 	}
+	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, portrange[0], portrange[1]);
+
 	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
 	printf("PORT      STATUS            SERVICE\n");
-	for (uint32_t i = 0; i < ((uint32_t)portrange[1] - portrange[0] + 1); i++)
+	for (int i = 0; i < (portrange[1] - portrange[0]) + 1; i++)
 	{
-
-		if (ports[i].status & STATUS_OPEN)
+		if (ports[i].flags & SET_ACCESS || ports[i].flags & SET_FILTER)
 		{
+			int		n;
 			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
-			int			n;
 			printf("%d/tcp%n", ports[i].port, &n);
-			printf("%*copen%*c", 10 - n, ' ', 18 - 4, ' ');
+			printf("%*c", 10 - n, ' ');
+			int		m = 0;
+			if (ports[i].flags & SET_ACCESS)
+			{
+				if (ports[i].flags & OPEN)
+					printf("open%n", &n);
+				else
+					printf("close%n", &n);
+			}
+			if (ports[i].flags & SET_FILTER)
+			{
+				if (n)
+				{
+					printf("|");
+					n++;
+				}
+				if (ports[i].flags & FILTERED)
+					printf("filtered%n", &m);
+				else
+					printf("unfiltered%n", &m);
+				n += m;
+			}
+			printf("%*c", 18 - n, ' ');
 			if (servi)
 				printf("%s\n", servi->s_name);
 			else
 				printf("unknown\n");
 		}
 	}
-
 	free(ports);
 	free(dev_name);
 	free(target_ip);

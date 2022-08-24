@@ -41,5 +41,6 @@ int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, in
 	memcpy(buf + sizeof(struct tcp4_pseudohdr), tcphdr, sizeof(struct tcphdr));
 	memcpy(buf + sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr), data, data_len);
 	*sum = checksum(buf, sizeof(struct tcp4_pseudohdr) + sizeof(struct tcphdr) + data_len);
+	free(buf);
 	return EXIT_SUCCESS;
 }

@@ -8,6 +8,7 @@
 # include <sys/time.h>
 # include <netdb.h>
 
+# include <netinet/if_ether.h>
 # include <netinet/in.h>
 # include <netinet/tcp.h>
 # include <netinet/udp.h>
@@ -21,6 +22,7 @@
 
 /* Utils headers */
 # include <errno.h>
+# include <pthread.h>
 # include <signal.h>
 # include <stdio.h>
 # include <stdlib.h>
@@ -30,6 +32,7 @@
 # include <unistd.h>
 
 # include <pcap.h>
+# include <pcap/sll.h>
 
 # include "logs.h"
 
@@ -41,10 +44,12 @@
 # define DATA_LEN	0
 # define MAX_ADDR_SIZE	64
 
-# define		STATUS_OPEN			0x01
-# define		STATUS_CLOSE		0x00
-# define		STATUS_FILTERED		0x02
-# define		STATUS_UNFILTERED	0x00
+# define		SET_ACCESS		0x01
+# define		OPEN			0x02
+# define		CLOSE			0x00
+# define		SET_FILTER		0x04
+# define		FILTERED		0x08
+# define		UNFILTERED		0x00
 
 extern char *prog_name;
 
@@ -58,6 +63,7 @@ typedef struct scanconf_s {
 
 typedef struct	sockfd_s {
 	int			sockfd_tcp;
+	int			sockfd_udp;
 }				sockfd_t;
 
 /*
@@ -65,16 +71,24 @@ typedef struct	sockfd_s {
 */
 typedef struct	s_port_status {
 	int			port;
-	uint8_t		status;
+	uint8_t		flags;
 }				t_port_status;
 
 /*
 ** Storage struct to keep track of each tcp packet sended
 */
+// TODO: add scan type ?
 struct scan_s {
-	struct iphdr	*iphdr;
-	struct tcphdr	*tcphdr;
+	void			*packet;
 	struct scan_s	*next;
+};
+
+/*
+** Pcap handler list for every thread
+*/
+struct pcap_t_handlers {
+	pcap_t					*handle;
+	struct pcap_t_handlers	*next;
 };
 
 
@@ -112,7 +126,7 @@ struct scan_s {
 /*=== PROTOTYPES ===*/
 
 /* scans/syn.c */
-t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, uint32_t port_start, uint32_t port_end);
+t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, uint32_t port_start, uint32_t port_end);
 
 /* netutils.c */
 char		*get_device(void);
@@ -120,12 +134,18 @@ int			get_ipv4_addr(int *addr, char *name);
 char		*resolve_hostname(char *hostname);
 
 /* send.c */
-int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, int dst_port, struct scan_s **scanlist, uint16_t flag);
+int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, int dst_port, uint16_t flag);
 
 /* scanlist.c */
-struct scan_s *new_scanentry(struct scan_s *head, void *buffer);
-void print_scanlist(struct scan_s *scanlist);
-bool	find_scan(void* buffer, struct scan_s *scanlist);
+struct scan_s	*new_scanentry(struct scan_s *head, void *buffer);
+void			print_scanlist(struct scan_s *scanlist);
+void			free_scanlist(struct scan_s *scanlist);
+bool			find_scan(void* buffer, struct scan_s *scanlist);
+
+
+/* pcap_handlers.c */
+struct pcap_t_handlers *new_handlerentry(struct pcap_t_handlers *head, pcap_t *handle);
+void	free_handlers(struct pcap_t_handlers *handlers);
 
 /* checksum.c */
 int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len, uint16_t *sum);
