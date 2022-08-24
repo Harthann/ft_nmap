@@ -19,6 +19,9 @@ struct pcap_t_handlers *new_handlerentry(struct pcap_t_handlers *head, pcap_t *h
 	return nentry;
 }
 
+/*
+** Release all handlers and free the list
+*/
 void	free_handlers(struct pcap_t_handlers *handlers)
 {
 	struct pcap_t_handlers *next;
@@ -27,6 +30,7 @@ void	free_handlers(struct pcap_t_handlers *handlers)
 	{
 		next = handlers->next;
 		pcap_close(handlers->handle);
+		free(handlers);
 		handlers = next;
 	}
 }
