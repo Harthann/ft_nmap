@@ -67,7 +67,7 @@ int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb
 			for (int i = 0; i < nb_port; i++)
 			{
 				if (ports[i].port == htons(tcphdr->source))
-					ports[i].flags = STATUS_OPEN;
+					ports[i].flags = OPEN;
 			}
 		}
 	}
@@ -189,7 +189,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 				for (uint32_t i = 0; i < nb_ports; i++)
 				{
 					if (ports[i].port == htons(tcphdr->source))
-						ports[i].flags = STATUS_OPEN;
+						ports[i].flags = SET_ACCESS | OPEN;
 				}
 			}
 		}

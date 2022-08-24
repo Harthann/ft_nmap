@@ -79,12 +79,34 @@ void		nmap(char *target, int portrange[2])
 	printf("PORT      STATUS            SERVICE\n");
 	for (int i = 0; i < (portrange[1] - portrange[0]) + 1; i++)
 	{
-		if (ports[i].flags == STATUS_OPEN)
+		if (ports[i].flags & SET_ACCESS || ports[i].flags & SET_FILTER)
 		{
-			int n;
+			int		n;
 			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
 			printf("%d/tcp%n", ports[i].port, &n);
-			printf("%*copen%*c", 10 - n, ' ', 18 - 4, ' ');
+			printf("%*c", 10 - n, ' ');
+			int		m = 0;
+			if (ports[i].flags & SET_ACCESS)
+			{
+				if (ports[i].flags & OPEN)
+					printf("open%n", &n);
+				else
+					printf("close%n", &n);
+			}
+			if (ports[i].flags & SET_FILTER)
+			{
+				if (n)
+				{
+					printf("|");
+					n++;
+				}
+				if (ports[i].flags & FILTERED)
+					printf("filtered%n", &m);
+				else
+					printf("unfiltered%n", &m);
+				n += m;
+			}
+			printf("%*c", 18 - n, ' ');
 			if (servi)
 				printf("%s\n", servi->s_name);
 			else

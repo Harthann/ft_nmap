@@ -43,10 +43,12 @@
 # define DATA_LEN	0
 # define MAX_ADDR_SIZE	64
 
-# define		STATUS_OPEN			0x01
-# define		STATUS_CLOSE		0x00
-# define		STATUS_FILTERED		0x02
-# define		STATUS_UNFILTERED	0x00
+# define		SET_ACCESS		0x01
+# define		OPEN			0x02
+# define		CLOSE			0x00
+# define		SET_FILTER		0x04
+# define		FILTERED		0x08
+# define		UNFILTERED		0x00
 
 extern char *prog_name;
 
