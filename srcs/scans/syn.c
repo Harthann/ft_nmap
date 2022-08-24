@@ -1,5 +1,32 @@
 #include "ft_nmap.h"
 
+pcap_t				*handle = NULL;
+struct scan_s		*scanlist = NULL;
+
+void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+{
+	(void)args;
+	(void)pkthdr;
+	(void)packet;
+	static int count = 1;
+	struct iphdr *ip = (struct iphdr*)(packet + sizeof(struct sll_header));
+
+	struct in_addr saddr = {.s_addr = ip->saddr};
+	struct in_addr daddr = {.s_addr = ip->daddr};
+	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
+	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
+	scanlist = new_scanentry(scanlist, (void *)packet + sizeof(struct sll_header));
+	//fprintf(stdout, "%3d, ", count);
+	//fflush(stdout);
+	count++;
+}
+
+void		terminate_pcap(int signum)
+{
+	(void)signum;
+	pcap_breakloop(handle);
+}
+
 /*
 ** Wrap the recvfrom function in order to retreive only response to our syn request
 ** Response type:
@@ -40,7 +67,7 @@ int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb
 			for (int i = 0; i < nb_port; i++)
 			{
 				if (ports[i].port == htons(tcphdr->source))
-					ports[i].status = STATUS_OPEN;
+					ports[i].flags = STATUS_OPEN;
 			}
 		}
 	}
@@ -54,17 +81,40 @@ int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb
 ** Will call sendto defined in send.c with the flag SYN
 ** Then call recv_syn to read interesting reponse only
 */
-t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, uint32_t port_start, uint32_t port_end)
+t_port_status	*scan_syn(char *dev, int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, uint32_t port_start, uint32_t port_end)
 {
+	char	errbuf[PCAP_ERRBUF_SIZE];
 	struct pollfd		fds[1];
 	uint32_t			nb_ports;
 	t_port_status		*ports;
+	bpf_u_int32			mask;
+	bpf_u_int32			net;
 
+	if (pcap_lookupnet(dev, &net, &mask, errbuf) == PCAP_ERROR) {
+		fprintf(stderr, "%s: pcap_loopkupnet: %s\n", prog_name, errbuf);
+		net = 0;
+		mask = 0;
+	}
+	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
+	if (!handle)
+	{
+		fprintf(stderr, "%s: pcap_open_live: %s\n", prog_name, errbuf);
+		return NULL;
+	}
+	struct sigaction sa;
+
+	memset(&sa, 0, sizeof(struct sigaction));
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = &terminate_pcap;
+	sigaction(SIGALRM, &sa, NULL);
+	alarm(5);
+	printf("pcap open\n");
 	nb_ports = (port_end - port_start) + 1;
 	ports = calloc(nb_ports, sizeof(t_port_status));
 	if (!ports)
 	{
 		fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
+		pcap_close(handle);
 		return NULL;
 	}
 	for (uint32_t i = 0; i < port_end - port_start - 1; i++)
@@ -93,6 +143,59 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		else if (!res)
 			break ;
 	}
+	struct bpf_program fp;
+	struct in_addr daddr = {.s_addr = iphdr->saddr};
+	char filter_exp[256];
+	sprintf(filter_exp, "ip host %s and (tcp  and portrange %d-%d or icmp)", inet_ntoa(daddr), port_start, port_end);
+	if (pcap_compile(handle, &fp, filter_exp, 0, net) == PCAP_ERROR) {
+		fprintf(stderr, "%s: pcap_compile: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
+		return NULL; // TODO: free ?
+	}
+	if (pcap_setfilter(handle, &fp) == PCAP_ERROR) {
+		fprintf(stderr, "%s: pcap_setfilter: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
+		return NULL; // TODO: free ?
+	}
+
+	while (1) {
+		int ret = pcap_dispatch(handle, -1, my_callback, NULL);
+		if (ret == PCAP_ERROR) {
+			printf("error\n");
+			break ;
+		}
+		else if (ret == PCAP_ERROR_BREAK) {
+			printf("error break\n");
+			break ;
+		}
+		else {
+			printf("all fine\n");
+		}
+	}
+	struct scan_s *tmp;
+
+	tmp = scanlist;
+	while (tmp)
+	{
+		struct iphdr		*iphdr;
+		struct tcphdr		*tcphdr;
+
+		iphdr = tmp->packet;
+		if (iphdr->protocol == IPPROTO_TCP)
+		{
+			tcphdr = tmp->packet + sizeof(struct iphdr);
+			if (TCP_FLAG(tcphdr) == (SYN | ACK))
+			{
+				for (uint32_t i = 0; i < nb_ports; i++)
+				{
+					if (ports[i].port == htons(tcphdr->source))
+						ports[i].flags = STATUS_OPEN;
+				}
+			}
+		}
+		tmp = tmp->next;
+	}
+	free_scanlist(scanlist);
+	pcap_freecode(&fp);
+	pcap_close(handle);
 	return ports;
 }
 
