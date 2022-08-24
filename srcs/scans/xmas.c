@@ -1,31 +1,29 @@
 #include "ft_nmap.h"
 
-pcap_t				*handle = NULL;
-struct scan_s		*scanlist = NULL;
+//pcap_t				*handle = NULL;
+extern pcap_t				*handle;
+extern struct scan_s		*scanlist;
+//struct scan_s		*scanlist = NULL;
 
-void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
-{
-	(void)args;
-	(void)pkthdr;
-	(void)packet;
-	static int count = 1;
-	struct iphdr *ip = (struct iphdr*)(packet + sizeof(struct sll_header));
-
-	struct in_addr saddr = {.s_addr = ip->saddr};
-	struct in_addr daddr = {.s_addr = ip->daddr};
-	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
-	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
-	scanlist = new_scanentry(scanlist, (void *)packet + sizeof(struct sll_header));
-	//fprintf(stdout, "%3d, ", count);
-	//fflush(stdout);
-	count++;
-}
-
-//void		terminate_pcap(int signum)
+void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet) ;
 //{
-//	(void)signum;
-//	pcap_breakloop(handle);
+//	(void)args;
+//	(void)pkthdr;
+//	(void)packet;
+//	static int count = 1;
+//	struct iphdr *ip = (struct iphdr*)(packet + sizeof(struct sll_header));
+//
+//	struct in_addr saddr = {.s_addr = ip->saddr};
+//	struct in_addr daddr = {.s_addr = ip->daddr};
+//	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
+//	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
+//	scanlist = new_scanentry(scanlist, (void *)packet + sizeof(struct sll_header));
+//	//fprintf(stdout, "%3d, ", count);
+//	//fflush(stdout);
+//	count++;
 //}
+
+void		terminate_pcap(int signum);
 
 /*
 ** Wrap the recvfrom function in order to retreive only response to our syn request
@@ -75,7 +73,7 @@ int			recv_xmas(int sockfd, struct scan_s *scanlist, t_port_status *ports, int n
 	return EXIT_SUCCESS;
 }
 
-void			start_capture(int sockfd, struct sockaddr_in *sockaddr,  struct iphdr *iphdr, bpf_u_int32 net, int port_start, int port_end) // THREAD ?
+void			start_xmas_capture(int sockfd, struct sockaddr_in *sockaddr,  struct iphdr *iphdr, bpf_u_int32 net, int port_start, int port_end) // THREAD ?
 {
 	char	errbuf[PCAP_ERRBUF_SIZE];
 	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
@@ -100,7 +98,7 @@ void			start_capture(int sockfd, struct sockaddr_in *sockaddr,  struct iphdr *ip
 		{
 			if (fds[0].revents & POLLOUT && i <= port_end)
 			{
-				int ret = send_tcp4(sockfd, sockaddr, iphdr, i++, SYN);
+				int ret = send_tcp4(sockfd, sockaddr, iphdr, i++, XMAS);
 				if (ret == -ENOMEM)
 					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 				else if (ret == EXIT_FAILURE)
@@ -163,7 +161,7 @@ t_port_status	*scan_xmas(int sockfd, struct sockaddr_in *sockaddr, struct iphdr 
 	for (uint32_t i = 0; i < nb_ports; i++)
 	{
 		ports[i].port = port_start + i;
-		ports[i].flags = SET_FILTER | SET_ACCESS;
+		ports[i].flags = SET_FILTER | SET_ACCESS | OPEN | FILTERED;
 	}
 	struct sigaction sa;
 
@@ -173,7 +171,7 @@ t_port_status	*scan_xmas(int sockfd, struct sockaddr_in *sockaddr, struct iphdr 
 	sigaction(SIGALRM, &sa, NULL);
 	alarm(5);
 	// TODO: pthread here ?
-	start_capture(sockfd, sockaddr, iphdr, net, port_start, port_end);
+	start_xmas_capture(sockfd, sockaddr, iphdr, net, port_start, port_end);
 	struct scan_s *tmp;
 
 	tmp = scanlist;
@@ -190,10 +188,8 @@ t_port_status	*scan_xmas(int sockfd, struct sockaddr_in *sockaddr, struct iphdr 
 			{
 				if (ports[i].port == htons(tcphdr->source))
 				{
-					if (TCP_FLAG(tcphdr) == (SYN | ACK))
-						ports[i].flags = SET_ACCESS | OPEN;
-					else
-						ports[i].flags = SET_ACCESS | CLOSE;
+					if (TCP_FLAG(tcphdr) == (RST))
+						ports[i].flags = CLOSE;
 				}
 			}
 		}

@@ -9,12 +9,12 @@ void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* 
 	(void)pkthdr;
 	(void)packet;
 	static int count = 1;
-	struct iphdr *ip = (struct iphdr*)(packet + sizeof(struct sll_header));
+//	struct iphdr *ip = (struct iphdr*)(packet + sizeof(struct sll_header));
 
-	struct in_addr saddr = {.s_addr = ip->saddr};
-	struct in_addr daddr = {.s_addr = ip->daddr};
-	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
-	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
+//	struct in_addr saddr = {.s_addr = ip->saddr};
+//	struct in_addr daddr = {.s_addr = ip->daddr};
+//	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
+//	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
 	scanlist = new_scanentry(scanlist, (void *)packet + sizeof(struct sll_header));
 	//fprintf(stdout, "%3d, ", count);
 	//fflush(stdout);
