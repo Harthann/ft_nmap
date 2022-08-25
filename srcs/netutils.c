@@ -2,6 +2,9 @@
 
 /*
 ** Use of libpcap to get network interface available
+** Use of gcc diagnostic ignore to ignore deprecated warning
+** This is done cause of pcap_lookupdev being deprecated
+** And the project has to use it since it's ask in subject
 */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -10,13 +13,11 @@ char		*get_device(void)
 	char			*name, *tmp;
 	char			errbuf[PCAP_ERRBUF_SIZE];
 
-	if (!(tmp = pcap_lookupdev(errbuf)))
-	{
+	if (!(tmp = pcap_lookupdev(errbuf))) {
 		fprintf(stderr, "%s: pcap_lookupdev: %s\n", prog_name, errbuf);
 		return NULL;
 	}
-	if (!(name = strdup(tmp)))
-	{
+	if (!(name = strdup(tmp))) {
 		fprintf(stderr, "%s: strdup: %s\n", prog_name, strerror(errno));
 		return NULL;
 	}
@@ -35,8 +36,7 @@ int			get_ipv4_addr(int *addr, char *name)
 	struct sockaddr_in	*paddr;
 
 	ret = EXIT_FAILURE;
-	if (getifaddrs(&ifap))
-	{
+	if (getifaddrs(&ifap)) {
 		fprintf(stderr, "%s: getifaddrs: %s\n", prog_name, strerror(errno));
 		return EXIT_FAILURE;
 	}
@@ -83,6 +83,26 @@ char		*resolve_hostname(char *hostname)
 		freeaddrinfo(res);
 	}
 	return (addr);
+}
+
+/*
+** Initialize socket to send tcp packet
+*/
+int		init_socket(int *fd, int proto)
+{
+
+	*fd = socket(AF_INET, SOCK_RAW, proto);
+	if (*fd < 0) {
+		fprintf(stderr, "%s: socket: %s\n", prog_name, strerror(errno));
+		return EXIT_FAILURE;
+	}
+
+	if (setsockopt(*fd, IPPROTO_IP, IP_HDRINCL, &(const char){1}, sizeof(char)) < 0) {
+		fprintf(stderr, "%s: socket: %s\n", prog_name, strerror(errno));
+		return EXIT_FAILURE;
+	}
+
+	return EXIT_SUCCESS;
 }
 
 

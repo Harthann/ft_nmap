@@ -125,6 +125,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 char		*get_device(void);
 int			get_ipv4_addr(int *addr, char *name);
 char		*resolve_hostname(char *hostname);
+int			init_socket(int *fd, int proto);
 
 /* send.c */
 void		send_tcp4_packets(int sockfd, struct sockaddr_in sockaddr,
@@ -146,6 +147,9 @@ int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, in
 
 /* signal.c */
 void		handling_signals();
+
+/* print_report.c */
+void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *target_ip);
 
 #endif
 

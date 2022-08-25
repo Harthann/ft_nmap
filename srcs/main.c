@@ -11,40 +11,14 @@ char				*prog_name = NULL;
 */
 void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 {
-	char			*dev_name;
 	sockfd_t		socks;
-	uint32_t		dst_addr;
+	char			*dev_name;
 	char			*target_ip;
 
-	target_ip = resolve_hostname(target);
-	if (!target_ip)
-	{
-		fprintf(stderr, "%s: Failed to resolve \"%s\".\n", prog_name, target);
-		return ;
-	}
-	inet_pton(AF_INET, target_ip, &dst_addr);
-	socks.sockfd_tcp = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
-	if (socks.sockfd_tcp < 0)
-	{
-		fprintf(stderr, "%s: socket: %s\n", prog_name, strerror(errno));
-		free(target_ip);
-		return ;
-	}
-	dev_name = get_device();
-	if (!dev_name)
-	{
-		free(target_ip);
-		return ;
-	}
-	int on = 1;
-	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
-// ===
-// ===
-	struct sockaddr_in sockaddr;
-	sockaddr.sin_addr.s_addr = dst_addr;
-	sockaddr.sin_family = AF_INET;
-	sockaddr.sin_port = 0;
-	struct iphdr	iphdr = {
+/*
+** General purpose structure ip and sockaddr
+*/
+	struct iphdr iphdr = {
 		.version = 4,
 		.ihl = sizeof(struct iphdr) / sizeof(uint32_t),
 		.tos = 0,
@@ -55,16 +29,47 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 		.protocol = IPPROTO_TCP,
 		.check = 0, // filled by kernel
 		.saddr = 0,
-		.daddr = dst_addr
 	};
-	if (get_ipv4_addr((int *)&iphdr.saddr, dev_name) == EXIT_FAILURE)
-	{
-		free(dev_name);
-		free(target_ip);
+	struct sockaddr_in sockaddr = {
+		.sin_family = AF_INET,
+		.sin_port = 0
+	};
+
+/*
+** Initialize socket for tcp packet scan
+*/
+	if (init_socket(&socks.sockfd_tcp, IPPROTO_TCP) == EXIT_FAILURE) {
 		return ;
 	}
 
-	char	errbuf[PCAP_ERRBUF_SIZE];
+/*
+** Resolve hostname and get ip in string format and uint format
+** Once ip is resolved as uint, fill sockaddr struct with it's value
+*/
+	target_ip = resolve_hostname(target);
+	if (!target_ip) {
+		fprintf(stderr, "%s: Failed to resolve \"%s\".\n", prog_name, target);
+		return ;
+	}
+	inet_pton(AF_INET, target_ip, &iphdr.daddr);
+	sockaddr.sin_addr.s_addr = iphdr.daddr;
+
+/*
+** Perform a device lookup and initialize ip packet
+** Ip source will be initialized with interface ip of devo_name
+*/
+	dev_name = get_device();
+	if (!dev_name) {
+		free(target_ip);
+		return ;
+	}
+	if (get_ipv4_addr((int *)&iphdr.saddr, dev_name) == EXIT_FAILURE) {
+		free(target_ip);
+		free(dev_name);
+		return ;
+	}
+
+	char				errbuf[PCAP_ERRBUF_SIZE];
 	bpf_u_int32			mask;
 	bpf_u_int32			net;
 
@@ -73,45 +78,15 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 		net = 0;
 		mask = 0;
 	}
+
+/*
+** Everything is initialized, we can now perfrom each scan
+*/
 	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, portrange, nb_ports);
 
-	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
-	printf("PORT      STATUS            SERVICE\n");
-	for (uint32_t i = 0; i < nb_ports; i++)
-	{
-		if (ports[i].flags & SET_ACCESS || ports[i].flags & SET_FILTER)
-		{
-			int		n;
-			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
-			printf("%d/tcp%n", ports[i].port, &n);
-			printf("%*c", 10 - n, ' ');
-			int		m = 0;
-			if (ports[i].flags & SET_ACCESS)
-			{
-				if (ports[i].flags & OPEN) printf("open%n", &n);
-				else
-					printf("close%n", &n);
-			}
-			if (ports[i].flags & SET_FILTER)
-			{
-				if (ports[i].flags & SET_ACCESS)
-				{
-					printf("|");
-					n++;
-				}
-				if (ports[i].flags & FILTERED)
-					printf("filtered%n", &m);
-				else
-					printf("unfiltered%n", &m);
-				n += m;
-			}
-			printf("%*c", 18 - n, ' ');
-			if (servi)
-				printf("%s\n", servi->s_name);
-			else
-				printf("unknown\n");
-		}
-	}
+
+	print_report(ports, nb_ports, target, target_ip);
+
 	free(ports);
 	free(dev_name);
 	free(target_ip);
@@ -167,6 +142,7 @@ int			main(int ac, char **av)
 	*/
 	for (size_t i = 0; config.targets[i]; i++)
 		nmap(config.targets[i], config.portrange, config.nb_ports);
+
 	free(config.portrange);
 	free(prog_name);
 	return EXIT_SUCCESS;
