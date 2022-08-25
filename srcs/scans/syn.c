@@ -1,7 +1,6 @@
 #include "ft_nmap.h"
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-struct pcap_t_handlers	*handlers = NULL;
+pcap_t					*handle = NULL;
 
 void		callback_capture(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet)
 {
@@ -12,15 +11,8 @@ void		callback_capture(u_char *args, const struct pcap_pkthdr* pkthdr, const u_c
 
 void		terminate_pcap(int signum)
 {
-	struct pcap_t_handlers *tmp;
-
 	(void)signum;
-	tmp = handlers;
-	while (tmp)
-	{
-		pcap_breakloop(tmp->handle);
-		tmp = tmp->next;
-	}
+	pcap_breakloop(handle);
 }
 
 void		compute_capture(struct scan_s *scanlist, t_port_status *portrange, int nb_ports)
@@ -51,62 +43,20 @@ void		compute_capture(struct scan_s *scanlist, t_port_status *portrange, int nb_
 
 typedef struct	s_args {
 	int					sockfd;
-	struct sockaddr_in	*sockaddr;
-	struct iphdr		*iphdr;
+	struct sockaddr_in	sockaddr;
+	struct iphdr		iphdr;
 	bpf_u_int32			net;
 	t_port_status		*portrange;
 	uint32_t			nb_ports;
 }				t_args;
 
-void		*start_capture(void *arg) // THREAD ?
+void		*send_syn_packets(void *arg)
 {
-	char			errbuf[PCAP_ERRBUF_SIZE];
-	struct scan_s	*scanlist = NULL;
 	t_args			*args;
-	pcap_t			*handle;
 
 	args = arg;
-	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
-	if (!handle)
-	{
-		fprintf(stderr, "%s: pcap_open_live: %s\n", prog_name, errbuf);
-		free(args);
-		return (NULL);
-	}
-	pthread_mutex_lock(&mutex);
-	handlers = new_handlerentry(handlers, handle);
-	pthread_mutex_unlock(&mutex);
-	if (!handlers)
-	{
-		fprintf(stderr, "%s: malloc: %s\n", prog_name, strerror(errno));
-		free(args);
-		return (NULL);
-	}
 	send_tcp4_packets(args->sockfd, args->sockaddr, args->iphdr, args->portrange, args->nb_ports, SYN);
-	struct bpf_program	fp;
-	struct in_addr		daddr = {.s_addr = args->iphdr->saddr};
-	char				filter_exp[256];
-/* Removed portrange from filter since we don't have linear range now */
-	sprintf(filter_exp, "ip host %s and (tcp or icmp)", inet_ntoa(daddr));
-	if (pcap_setup_filter(handle, &fp, args->net, (char *)filter_exp))
-	{
-		free(args);
-		return (NULL);
-	}
-	while (true)
-	{
-		int ret = pcap_dispatch(handle, -1, callback_capture, (void *)&scanlist);
-		if (ret == PCAP_ERROR) {
-			fprintf(stderr, "%s: pcap_dispatch: error\n", prog_name);
-			break ;
-		}
-		else if (ret == PCAP_ERROR_BREAK)
-			break ;
-	}
-	compute_capture(scanlist, args->portrange, args->nb_ports);
-	pcap_freecode(&fp);
-	free_scanlist(scanlist);
-	free(args);
+	free(arg);
 	return (NULL);
 }
 
@@ -117,6 +67,8 @@ void		*start_capture(void *arg) // THREAD ?
 */
 t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config)
 {
+	char				errbuf[PCAP_ERRBUF_SIZE];
+	struct scan_s		*scanlist = NULL;
 	t_port_status		*ports;
 
 	ports = calloc(config->nb_ports, sizeof(t_port_status));
@@ -131,17 +83,20 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		ports[i].port = config->portrange[i];
 		ports[i].flags = SET_FILTER | FILTERED;
 	}
-	struct sigaction sa;
 
-	memset(&sa, 0, sizeof(struct sigaction));
-	sigemptyset(&sa.sa_mask);
-	sa.sa_handler = &terminate_pcap;
-	sigaction(SIGALRM, &sa, NULL);
-	alarm(5);
-
-	if (pthread_mutex_init(&mutex, NULL)) {
-		//TODO: problem + free
+	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
+	if (!handle)
+	{
+		fprintf(stderr, "%s: pcap_open_live: %s\n", prog_name, errbuf);
+		return (NULL); // TODO MORE PROBLEM
 	}
+	struct bpf_program	fp;
+	struct in_addr		daddr = {.s_addr = iphdr->saddr};
+	char				filter_exp[256];
+/* Removed portrange from filter since we don't have linear range now */
+	sprintf(filter_exp, "ip host %s and (tcp or icmp)", inet_ntoa(daddr));
+	if (pcap_setup_filter(handle, &fp, net, (char *)filter_exp))
+		return (NULL);
 	pthread_t		*threadid;
 
 	int			nb_threads = 10;
@@ -155,26 +110,47 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	for (; i < nb_threads && handled_ports < (int)config->nb_ports; i++)
 	{
 		args = malloc(sizeof(t_args));
+		if (!args)
+		{
+			fprintf(stderr, "%s: malloc: %s\n", prog_name, strerror(errno));
+			break ;
+		}
 		args->sockfd = sockfd;
-		args->sockaddr = sockaddr;
-		args->iphdr = iphdr;
+		args->sockaddr = *sockaddr;
+		args->iphdr = *iphdr;
 		args->net = net;
 		args->portrange = ports + handled_ports;
 		if (config->nb_ports / nb_threads)
 			args->nb_ports = ((!i) ? (config->nb_ports % nb_threads) : 0) + (config->nb_ports / nb_threads);
 		else
 			args->nb_ports = 1;
-		pthread_create(&threadid[i], NULL, start_capture, args); // TODO: check return
 		handled_ports += args->nb_ports;
+		pthread_create(&threadid[i], NULL, send_syn_packets, args); // TODO: check return
 	}
 	nb_threads = i;
 	for (;i > 0; --i)
 		pthread_join(threadid[nb_threads - i], NULL); // TODO: check return
 	free(threadid);
-	if (pthread_mutex_destroy(&mutex))
+	struct sigaction sa;
+
+	memset(&sa, 0, sizeof(struct sigaction));
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = &terminate_pcap;
+	sigaction(SIGALRM, &sa, NULL);
+	alarm(5);
+	while (true)
 	{
-		//TODO: problem
+		int ret = pcap_dispatch(handle, -1, callback_capture, (void *)&scanlist);
+		if (ret == PCAP_ERROR) {
+			fprintf(stderr, "%s: pcap_dispatch: error\n", prog_name);
+			break ;
+		}
+		else if (ret == PCAP_ERROR_BREAK)
+			break ;
 	}
-	free_handlers(handlers);
+	compute_capture(scanlist, ports, config->nb_ports);
+	pcap_freecode(&fp);
+	free_scanlist(scanlist);
+	pcap_close(handle);
 	return ports;
 }

@@ -85,14 +85,6 @@ struct scan_s {
 	struct scan_s	*next;
 };
 
-/*
-** Pcap handler list for every thread
-*/
-struct pcap_t_handlers {
-	pcap_t					*handle;
-	struct pcap_t_handlers	*next;
-};
-
 
 /*=== MACROS ===*/
 
@@ -137,9 +129,9 @@ char		*resolve_hostname(char *hostname);
 int			init_socket(int *fd, int proto);
 
 /* send.c */
-void		send_tcp4_packets(int sockfd, struct sockaddr_in *sockaddr,
-struct iphdr *iphdr, t_port_status *portrange, int nb_ports, int flags);
-int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, int dst_port, uint16_t flag);
+void		send_tcp4_packets(int sockfd, struct sockaddr_in sockaddr,
+struct iphdr iphdr, t_port_status *portrange, int nb_ports, int flags);
+int			send_tcp4(int sockfd, struct sockaddr_in sockaddr, struct iphdr iphdr, int dst_port, uint16_t flag);
 
 /* scanlist.c */
 struct scan_s	*new_scanentry(struct scan_s *head, void *buffer);
@@ -149,9 +141,7 @@ bool			find_scan(void* buffer, struct scan_s *scanlist);
 
 
 /* pcap_handlers.c */
-struct pcap_t_handlers		*new_handlerentry(struct pcap_t_handlers *head, pcap_t *handle);
-void						free_handlers(struct pcap_t_handlers *handlers);
-int							pcap_setup_filter(pcap_t *handle, struct bpf_program *fp, bpf_u_int32 net, char *filter);
+int		pcap_setup_filter(pcap_t *handle, struct bpf_program *fp, bpf_u_int32 net, char *filter);
 
 /* checksum.c */
 int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len, uint16_t *sum);
@@ -163,3 +153,4 @@ void		handling_signals();
 void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *target_ip);
 
 #endif
+
