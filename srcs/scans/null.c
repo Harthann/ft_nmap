@@ -40,7 +40,7 @@ static void		compute_capture(struct scan_s *scanlist, t_port_status *portrange, 
 	}
 }
 
-t_port_status	*scan_xmas(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config)
+t_port_status	*scan_null(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config)
 {
 	char				errbuf[PCAP_ERRBUF_SIZE];
 	struct scan_s		*scanlist = NULL;
@@ -76,7 +76,7 @@ t_port_status	*scan_xmas(int sockfd, struct sockaddr_in *sockaddr, struct iphdr 
 		free(ports);
 		return (NULL);
 	}
-	if (thread_send(sockfd, sockaddr, iphdr, FIN | PSH | URG, config, ports, send_tcp4_packets, 10))
+	if (thread_send(sockfd, sockaddr, iphdr, 0, config, ports, send_tcp4_packets, 10))
 	{
 		pcap_freecode(&fp);
 		pcap_close(handle);

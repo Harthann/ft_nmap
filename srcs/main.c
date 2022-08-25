@@ -83,10 +83,22 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 ** Everything is initialized, we can now perfrom each scan
 */
 	t_port_status *ports;
+	printf("SYN SCAN\n");
 	ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
 	print_report(ports, config->nb_ports, target, target_ip);
 	free(ports);
 
+	printf("NULL SCAN\n");
+	ports = scan_null(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
+	print_report(ports, config->nb_ports, target, target_ip);
+	free(ports);
+
+	printf("FIN SCAN\n");
+	ports = scan_fin(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
+	print_report(ports, config->nb_ports, target, target_ip);
+	free(ports);
+
+	printf("XMAS SCAN\n");
 	ports = scan_xmas(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
 	print_report(ports, config->nb_ports, target, target_ip);
 	free(ports);

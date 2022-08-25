@@ -132,8 +132,12 @@ typedef struct	s_args_send {
 /* scans/syn.c */
 void		callback_capture(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet);
 t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config);
+/* scans/fin.c */
+t_port_status	*scan_fin(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config);
 /* scans/xmas.c */
 t_port_status	*scan_xmas(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config);
+/* scans/null.c */
+t_port_status	*scan_null(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config);
 
 /* netutils.c */
 char		*get_device(void);
