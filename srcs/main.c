@@ -11,23 +11,14 @@ char				*prog_name = NULL;
 */
 void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 {
-	char			*dev_name;
 	sockfd_t		socks;
-	uint32_t		dst_addr;
+	char			*dev_name;
 	char			*target_ip;
 
-	init_socket(target, &socks, &target_ip, &dst_addr);
-	dev_name = get_device();
-	if (!dev_name) {
-		return ;
-	}
-// ===
-// ===
-	struct sockaddr_in sockaddr;
-	sockaddr.sin_addr.s_addr = dst_addr;
-	sockaddr.sin_family = AF_INET;
-	sockaddr.sin_port = 0;
-	struct iphdr	iphdr = {
+/*
+** General purpose structure ip and sockaddr
+*/
+	struct iphdr iphdr = {
 		.version = 4,
 		.ihl = sizeof(struct iphdr) / sizeof(uint32_t),
 		.tos = 0,
@@ -38,14 +29,47 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 		.protocol = IPPROTO_TCP,
 		.check = 0, // filled by kernel
 		.saddr = 0,
-		.daddr = dst_addr
 	};
+	struct sockaddr_in sockaddr = {
+		.sin_family = AF_INET,
+		.sin_port = 0
+	};
+
+/*
+** Initialize socket for tcp packet scan
+*/
+	if (init_socket(&socks.sockfd_tcp, IPPROTO_TCP) == EXIT_FAILURE) {
+		return ;
+	}
+
+/*
+** Resolve hostname and get ip in string format and uint format
+** Once ip is resolved as uint, fill sockaddr struct with it's value
+*/
+	target_ip = resolve_hostname(target);
+	if (!target_ip) {
+		fprintf(stderr, "%s: Failed to resolve \"%s\".\n", prog_name, target);
+		return ;
+	}
+	inet_pton(AF_INET, target_ip, &iphdr.daddr);
+	sockaddr.sin_addr.s_addr = iphdr.daddr;
+
+/*
+** Perform a device lookup and initialize ip packet
+** Ip source will be initialized with interface ip of devo_name
+*/
+	dev_name = get_device();
+	if (!dev_name) {
+		free(target_ip);
+		return ;
+	}
 	if (get_ipv4_addr((int *)&iphdr.saddr, dev_name) == EXIT_FAILURE) {
+		free(target_ip);
 		free(dev_name);
 		return ;
 	}
 
-	char	errbuf[PCAP_ERRBUF_SIZE];
+	char				errbuf[PCAP_ERRBUF_SIZE];
 	bpf_u_int32			mask;
 	bpf_u_int32			net;
 
@@ -55,7 +79,11 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 		mask = 0;
 	}
 
+/*
+** Everything is initialized, we can now perfrom each scan
+*/
 	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, portrange, nb_ports);
+
 
 	print_report(ports, nb_ports, target, target_ip);
 
@@ -114,6 +142,7 @@ int			main(int ac, char **av)
 	*/
 	for (size_t i = 0; config.targets[i]; i++)
 		nmap(config.targets[i], config.portrange, config.nb_ports);
+
 	free(config.portrange);
 	free(prog_name);
 	return EXIT_SUCCESS;
