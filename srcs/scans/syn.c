@@ -23,6 +23,32 @@ void		terminate_pcap(int signum)
 	}
 }
 
+void		compute_capture(struct scan_s *scanlist, t_port_status *portrange, int nb_ports)
+{
+	struct iphdr		*iphdr;
+	struct tcphdr		*tcphdr;
+
+	while (scanlist)
+	{
+		iphdr = scanlist->packet;
+		if (iphdr->protocol == IPPROTO_TCP)
+		{
+			tcphdr = scanlist->packet + sizeof(struct iphdr);
+			for (int i = 0; i < nb_ports; i++)
+			{
+				if (portrange[i].port == htons(tcphdr->source))
+				{
+					if (TCP_FLAG(tcphdr) == (SYN | ACK))
+						portrange[i].flags = SET_ACCESS | OPEN;
+					else
+						portrange[i].flags = SET_ACCESS | CLOSE;
+				}
+			}
+		}
+		scanlist = scanlist->next;
+	}
+}
+
 typedef struct	s_args {
 	int					sockfd;
 	struct sockaddr_in	*sockaddr;
@@ -34,11 +60,12 @@ typedef struct	s_args {
 
 void		*start_capture(void *arg) // THREAD ?
 {
-	struct scan_s			*scanlist = NULL;
-	t_args *args = arg;
-	pcap_t		*handle;
+	char			errbuf[PCAP_ERRBUF_SIZE];
+	struct scan_s	*scanlist = NULL;
+	t_args			*args;
+	pcap_t			*handle;
 
-	char	errbuf[PCAP_ERRBUF_SIZE];
+	args = arg;
 	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
 	if (!handle)
 	{
@@ -46,95 +73,37 @@ void		*start_capture(void *arg) // THREAD ?
 		free(args);
 		return (NULL);
 	}
-	// TODO: mutex and error on new_handlerentry
 	pthread_mutex_lock(&mutex);
 	handlers = new_handlerentry(handlers, handle);
 	pthread_mutex_unlock(&mutex);
 	if (!handlers)
 	{
-		// TODO: problem !
+		fprintf(stderr, "%s: malloc: %s\n", prog_name, strerror(errno));
+		free(args);
+		return (NULL);
 	}
-	struct pollfd		fds[1];
-	//int		nb_ports;
-
-	//nb_ports = (args->port_end - args->port_start) + 1;
-	memset(fds, 0, sizeof(fds));
-	fds[0].fd = args->sockfd;
-	fds[0].events = POLLOUT | POLLERR;
-
-	uint32_t i = 0;
-	while (true)
-	{
-		int res = poll(fds, 1, 1000);
-		if (res > 0)
-		{
-			if (fds[0].revents & POLLOUT && i < args->nb_ports)
-			{
-				int ret = send_tcp4(args->sockfd, args->sockaddr, args->iphdr, args->portrange[i++].port, SYN);
-				if (ret == -ENOMEM)
-					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
-				else if (ret == EXIT_FAILURE)
-					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
-			}
-			else if (i >= args->nb_ports && fds[0].revents & POLLOUT)
-				fds[0].events = POLLERR;
-		}
-		else if (!res)
-			break ;
-	}
-	struct bpf_program fp;
-	struct in_addr daddr = {.s_addr = args->iphdr->saddr};
-	char filter_exp[256];
+	send_tcp4_packets(args->sockfd, args->sockaddr, args->iphdr, args->portrange, args->nb_ports, SYN);
+	struct bpf_program	fp;
+	struct in_addr		daddr = {.s_addr = args->iphdr->saddr};
+	char				filter_exp[256];
 /* Removed portrange from filter since we don't have linear range now */
 	sprintf(filter_exp, "ip host %s and (tcp or icmp)", inet_ntoa(daddr));
-	if (pcap_compile(handle, &fp, filter_exp, 0, args->net) == PCAP_ERROR) {
-		fprintf(stderr, "%s: pcap_compile: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
-		pcap_freecode(&fp);
+	if (pcap_setup_filter(handle, &fp, args->net, (char *)filter_exp))
+	{
 		free(args);
-		return (NULL); // TODO: free ?
+		return (NULL);
 	}
-	if (pcap_setfilter(handle, &fp) == PCAP_ERROR) {
-		fprintf(stderr, "%s: pcap_setfilter: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
-		pcap_freecode(&fp);
-		free(args);
-		return (NULL); // TODO: free ?
-	}
-
-	while (1)
+	while (true)
 	{
 		int ret = pcap_dispatch(handle, -1, callback_capture, (void *)&scanlist);
 		if (ret == PCAP_ERROR) {
-			printf("error\n");
+			fprintf(stderr, "%s: pcap_dispatch: error\n", prog_name);
 			break ;
 		}
 		else if (ret == PCAP_ERROR_BREAK)
 			break ;
 	}
-	struct scan_s *tmp;
-
-	tmp = scanlist;
-	while (tmp)
-	{
-		struct iphdr		*iphdr;
-		struct tcphdr		*tcphdr;
-
-		iphdr = tmp->packet;
-		if (iphdr->protocol == IPPROTO_TCP)
-		{
-			tcphdr = tmp->packet + sizeof(struct iphdr);
-			for (uint32_t i = 0; i < args->nb_ports; i++)
-			{
-				if (args->portrange[i].port == htons(tcphdr->source))
-				{
-					if (TCP_FLAG(tcphdr) == (SYN | ACK))
-						args->portrange[i].flags = SET_ACCESS | OPEN;
-					else
-						args->portrange[i].flags = SET_ACCESS | CLOSE;
-				}
-			}
-		}
-		tmp = tmp->next;
-	}
+	compute_capture(scanlist, args->portrange, args->nb_ports);
 	pcap_freecode(&fp);
 	free_scanlist(scanlist);
 	free(args);
