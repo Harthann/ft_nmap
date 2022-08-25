@@ -85,6 +85,14 @@ struct scan_s {
 	struct scan_s	*next;
 };
 
+typedef struct	s_args_send {
+	int					sockfd;
+	struct sockaddr_in	sockaddr;
+	struct iphdr		iphdr;
+	t_port_status		*portrange;
+	int					nb_ports;
+	int					flags;
+}				t_args_send;
 
 /*=== MACROS ===*/
 
@@ -129,8 +137,8 @@ char		*resolve_hostname(char *hostname);
 int			init_socket(int *fd, int proto);
 
 /* send.c */
-void		send_tcp4_packets(int sockfd, struct sockaddr_in sockaddr,
-struct iphdr iphdr, t_port_status *portrange, int nb_ports, int flags);
+int				thread_send(int sockfd, struct sockaddr_in * sockaddr, struct iphdr *iphdr, int flags, scanconf_t *config, t_port_status *ports, void *(fn(void *)), int nb_threads);
+void		*send_tcp4_packets(void *args);
 int			send_tcp4(int sockfd, struct sockaddr_in sockaddr, struct iphdr iphdr, int dst_port, uint16_t flag);
 
 /* scanlist.c */
@@ -148,6 +156,7 @@ int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, in
 
 /* signal.c */
 void		handling_signals();
+void		setup_pcap_exit(int seconds);
 
 /* print_report.c */
 void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *target_ip);
