@@ -115,19 +115,20 @@ void		*start_capture(void *arg) // THREAD ?
 ** Will call sendto defined in send.c with the flag SYN
 ** Then call recv_syn to read interesting reponse only
 */
-t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, uint32_t *portrange, uint32_t nb_ports)
+t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config)
 {
 	t_port_status		*ports;
 
-	ports = calloc(nb_ports, sizeof(t_port_status));
+	ports = calloc(config->nb_ports, sizeof(t_port_status));
 	if (!ports)
 	{
 		fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 		return NULL;
 	}
-	for (uint32_t i = 0; i < nb_ports; i++)
+
+	for (uint32_t i = 0; i < config->nb_ports; i++)
 	{
-		ports[i].port = portrange[i];
+		ports[i].port = config->portrange[i];
 		ports[i].flags = SET_FILTER | FILTERED;
 	}
 	struct sigaction sa;
@@ -138,8 +139,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	sigaction(SIGALRM, &sa, NULL);
 	alarm(5);
 
-	if (pthread_mutex_init(&mutex, NULL))
-	{
+	if (pthread_mutex_init(&mutex, NULL)) {
 		//TODO: problem + free
 	}
 	pthread_t		*threadid;
@@ -152,7 +152,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	int			handled_ports = 0;
 	t_args *args;
 	int i = 0;
-	for (; i < nb_threads && handled_ports < (int)nb_ports; i++)
+	for (; i < nb_threads && handled_ports < (int)config->nb_ports; i++)
 	{
 		args = malloc(sizeof(t_args));
 		args->sockfd = sockfd;
@@ -160,8 +160,8 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		args->iphdr = iphdr;
 		args->net = net;
 		args->portrange = ports + handled_ports;
-		if (nb_ports / nb_threads)
-			args->nb_ports = ((!i) ? (nb_ports % nb_threads) : 0) + (nb_ports / nb_threads);
+		if (config->nb_ports / nb_threads)
+			args->nb_ports = ((!i) ? (config->nb_ports % nb_threads) : 0) + (config->nb_ports / nb_threads);
 		else
 			args->nb_ports = 1;
 		pthread_create(&threadid[i], NULL, start_capture, args); // TODO: check return

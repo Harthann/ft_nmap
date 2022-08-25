@@ -2,6 +2,8 @@
 #include "args.h"
 #include "ft_nmap.h"
 
+char verbose = 0;
+
 /*
 ** Quick reminder on ft_getopt "lib"
 ** Each call to ft_getopt will return either the option 
@@ -21,6 +23,7 @@ struct s_optdesc options_descriptor[] = {
 	{"ports",	ARGREQ, 0, 0, DESC_PORTS},
 	{"scan",	ARGREQ, 0, 0, DESC_SCAN},
 	{"speedup",	ARGREQ, 0, 0, DESC_SPEED},
+	{"verbose", NO_ARG, &verbose, 'v', DESC_VERB},
 
 	{0, 0, 0, 0, 0}
 };

@@ -13,5 +13,7 @@
 
 #define DESC_SCAN	"Select your scanning method.\n\t\t\t\tEx: --scan ACK\n"
 
+#define DESC_VERB	"Add verbosity to the output, forcing nmap to print every port result\n"
+
 
 #endif

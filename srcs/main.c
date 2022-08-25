@@ -9,7 +9,7 @@ char				*prog_name = NULL;
 ** Performuing ports[1] - ports[0] should give the number of ports
 ** This number should lend between 1 and 1024
 */
-void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
+void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb_ports)
 {
 	sockfd_t		socks;
 	char			*dev_name;
@@ -58,6 +58,11 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 ** Perform a device lookup and initialize ip packet
 ** Ip source will be initialized with interface ip of devo_name
 */
+	char				errbuf[PCAP_ERRBUF_SIZE];
+	bpf_u_int32			mask;
+	bpf_u_int32			net;
+
+
 	dev_name = get_device();
 	if (!dev_name) {
 		free(target_ip);
@@ -68,11 +73,6 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 		free(dev_name);
 		return ;
 	}
-
-	char				errbuf[PCAP_ERRBUF_SIZE];
-	bpf_u_int32			mask;
-	bpf_u_int32			net;
-
 	if (pcap_lookupnet(dev_name, &net, &mask, errbuf) == PCAP_ERROR) {
 		fprintf(stderr, "%s: pcap_loopkupnet: %s\n", prog_name, errbuf);
 		net = 0;
@@ -82,10 +82,9 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 /*
 ** Everything is initialized, we can now perfrom each scan
 */
-	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, portrange, nb_ports);
+	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
 
-
-	print_report(ports, nb_ports, target, target_ip);
+	print_report(ports, config->nb_ports, target, target_ip);
 
 	free(ports);
 	free(dev_name);
@@ -110,7 +109,8 @@ int			main(int ac, char **av)
 	scanconf_t	config = {
 		.types = -1,
 		.targets = NULL,
-		.portrange = NULL
+		.portrange = NULL,
+		.nb_threads = 0
 	};
 
 	/*
@@ -122,6 +122,7 @@ int			main(int ac, char **av)
 		fprintf(stderr, "%s: %s\n", PROG_NAME, strerror(errno));
 		return EXIT_FAILURE;
 	}
+
 	/*
 	** Parse argument send to the program using ft_getopt
 	*/
@@ -141,7 +142,7 @@ int			main(int ac, char **av)
 	** For each ip found inside arguments we'll perform a scan
 	*/
 	for (size_t i = 0; config.targets[i]; i++)
-		nmap(config.targets[i], config.portrange, config.nb_ports);
+		nmap(config.targets[i], &config);
 
 	free(config.portrange);
 	free(prog_name);

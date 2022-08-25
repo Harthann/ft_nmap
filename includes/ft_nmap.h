@@ -59,6 +59,7 @@ typedef struct scanconf_s {
 	char		**targets;
 	uint32_t	*portrange;
 	uint32_t	nb_ports;
+	uint32_t	nb_threads;
 }	scanconf_t;
 
 
@@ -127,7 +128,7 @@ struct pcap_t_handlers {
 /*=== PROTOTYPES ===*/
 
 /* scans/syn.c */
-t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, uint32_t *portrange, uint32_t nb_ports);
+t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config);
 
 /* netutils.c */
 char		*get_device(void);

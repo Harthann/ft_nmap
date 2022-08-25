@@ -5,6 +5,7 @@
 #include "ft_nmap.h"
 
 extern struct s_optdesc options_descriptor[];
+extern char	verbose;
 
 #define TODO(string) printf("Not yet implemented: %s\n", string)
 

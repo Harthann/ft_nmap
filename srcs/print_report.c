@@ -1,7 +1,10 @@
 #include "ft_nmap.h"
+#include "args.h"
 
 int		should_print(uint8_t flags, int filtered, int open)
 {
+	if (verbose)
+		return 1;
 	if ((flags & SET_ACCESS) && (flags & OPEN) && open < filtered)
 		return 1;
 	if ((flags & SET_FILTER) && (flags & FILTERED) && filtered < open)
