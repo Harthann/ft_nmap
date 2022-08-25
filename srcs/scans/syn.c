@@ -2,21 +2,12 @@
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 struct pcap_t_handlers	*handlers = NULL;
-struct scan_s			*scanlist = NULL;
-void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet)
-{
-	(void)args;
-	(void)pkthdr;
-//	struct iphdr *ip = (struct iphdr*)(packet + sizeof(struct sll_header));
 
-//	struct in_addr saddr = {.s_addr = ip->saddr};
-//	struct in_addr daddr = {.s_addr = ip->daddr};
-//	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
-//	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
-	// TODO: error and mutex
-	pthread_mutex_lock(&mutex);
-	scanlist = new_scanentry(scanlist, (void *)packet + sizeof(struct sll_header));
-	pthread_mutex_unlock(&mutex);
+void		callback_capture(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet)
+{
+	(void)pkthdr;
+	struct scan_s		**scanlist = (void *)args;
+	*scanlist = new_scanentry(*scanlist, (void *)packet + sizeof(struct sll_header));
 }
 
 void		terminate_pcap(int signum)
@@ -32,65 +23,18 @@ void		terminate_pcap(int signum)
 	}
 }
 
-/*
-** Wrap the recvfrom function in order to retreive only response to our syn request
-** Response type:
-**			Syn/Ack: Port open
-**			Rst/Ack: Port close
-**			No response: Filtered
-*/
-//int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb_port)
-//{
-//	void					*buffer;
-//	int						len;
-//	struct tcphdr			*tcphdr;
-////	struct iphdr			*iphdr_rcv;
-//
-//	len = sizeof(struct iphdr) + sizeof(struct tcphdr) + DATA_LEN;
-//	buffer = malloc(len);
-//	if (!buffer)
-//		return -ENOMEM;
-//
-//	if (recvfrom(sockfd, buffer, len, 0, NULL, NULL) < 0)
-//	{
-//		free(buffer);
-//		fprintf(stderr, "recvfrom: %s\n", strerror(errno));
-//		free(buffer);
-//		return EXIT_FAILURE;
-//	}
-//
-////	iphdr_rcv = buffer;
-//
-///*
-//** Perform a check if the response correspond to one of our scan
-//** If so check the responses flag and print scan result
-//*/
-//	tcphdr = buffer + sizeof(struct iphdr);
-//	if (find_scan(buffer, scanlist)) {
-//		if (TCP_FLAG(tcphdr) == (SYN | ACK))
-//		{
-//			for (uint32_t i = 0; i < nb_port; i++)
-//			{
-//				if (ports[i].port == htons(tcphdr->source))
-//					ports[i].flags = OPEN;
-//			}
-//		}
-//	}
-//	free(buffer);
-//	return EXIT_SUCCESS;
-//}
-
 typedef struct	s_args {
 	int					sockfd;
 	struct sockaddr_in	*sockaddr;
 	struct iphdr		*iphdr;
 	bpf_u_int32			net;
-	uint32_t			*portrange;
+	t_port_status		*portrange;
 	uint32_t			nb_ports;
 }				t_args;
 
 void		*start_capture(void *arg) // THREAD ?
 {
+	struct scan_s			*scanlist = NULL;
 	t_args *args = arg;
 	pcap_t		*handle;
 
@@ -126,7 +70,7 @@ void		*start_capture(void *arg) // THREAD ?
 		{
 			if (fds[0].revents & POLLOUT && i < args->nb_ports)
 			{
-				int ret = send_tcp4(args->sockfd, args->sockaddr, args->iphdr, args->portrange[i++], SYN);
+				int ret = send_tcp4(args->sockfd, args->sockaddr, args->iphdr, args->portrange[i++].port, SYN);
 				if (ret == -ENOMEM)
 					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 				else if (ret == EXIT_FAILURE)
@@ -156,21 +100,43 @@ void		*start_capture(void *arg) // THREAD ?
 		return (NULL); // TODO: free ?
 	}
 
-	while (1) {
-		int ret = pcap_dispatch(handle, -1, my_callback, NULL);
+	while (1)
+	{
+		int ret = pcap_dispatch(handle, -1, callback_capture, (void *)&scanlist);
 		if (ret == PCAP_ERROR) {
 			printf("error\n");
 			break ;
 		}
-		else if (ret == PCAP_ERROR_BREAK) {
-			printf("error break\n");
+		else if (ret == PCAP_ERROR_BREAK)
 			break ;
+	}
+	struct scan_s *tmp;
+
+	tmp = scanlist;
+	while (tmp)
+	{
+		struct iphdr		*iphdr;
+		struct tcphdr		*tcphdr;
+
+		iphdr = tmp->packet;
+		if (iphdr->protocol == IPPROTO_TCP)
+		{
+			tcphdr = tmp->packet + sizeof(struct iphdr);
+			for (uint32_t i = 0; i < args->nb_ports; i++)
+			{
+				if (args->portrange[i].port == htons(tcphdr->source))
+				{
+					if (TCP_FLAG(tcphdr) == (SYN | ACK))
+						args->portrange[i].flags = SET_ACCESS | OPEN;
+					else
+						args->portrange[i].flags = SET_ACCESS | CLOSE;
+				}
+			}
 		}
-		else {
-			printf("all fine\n");
-		}
+		tmp = tmp->next;
 	}
 	pcap_freecode(&fp);
+	free_scanlist(scanlist);
 	free(args);
 	return (NULL);
 }
@@ -205,57 +171,41 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 
 	if (pthread_mutex_init(&mutex, NULL))
 	{
-		//TODO: problem
+		//TODO: problem + free
 	}
-	pthread_t		threadid[2];
+	pthread_t		*threadid;
+
+	int			nb_threads = 10;
+	threadid = malloc(sizeof(pthread_t) * nb_threads);
+	if (!threadid) // TODO: problem + free
+		return NULL;
 	//int test = port_end / 2;
+	int			handled_ports = 0;
 	t_args *args;
-	for (int i = 0; i < 2; i++)
+	int i = 0;
+	for (; i < nb_threads && handled_ports < (int)nb_ports; i++)
 	{
 		args = malloc(sizeof(t_args));
 		args->sockfd = sockfd;
 		args->sockaddr = sockaddr;
 		args->iphdr = iphdr;
 		args->net = net;
-		args->portrange = portrange + (i * nb_ports / 2);
-		args->nb_ports = nb_ports / 2;
-	//	start_capture(&args);
+		args->portrange = ports + handled_ports;
+		if (nb_ports / nb_threads)
+			args->nb_ports = ((!i) ? (nb_ports % nb_threads) : 0) + (nb_ports / nb_threads);
+		else
+			args->nb_ports = 1;
 		pthread_create(&threadid[i], NULL, start_capture, args); // TODO: check return
-		//port_start = test + 1;
-		//test *= 2;
+		handled_ports += args->nb_ports;
 	}
-	for (int i = 0; i < 2; i++)
-		pthread_join(threadid[i], NULL); // TODO: check return
+	nb_threads = i;
+	for (;i > 0; --i)
+		pthread_join(threadid[nb_threads - i], NULL); // TODO: check return
+	free(threadid);
 	if (pthread_mutex_destroy(&mutex))
 	{
 		//TODO: problem
 	}
-	struct scan_s *tmp;
-
-	tmp = scanlist;
-	while (tmp)
-	{
-		struct iphdr		*iphdr;
-		struct tcphdr		*tcphdr;
-
-		iphdr = tmp->packet;
-		if (iphdr->protocol == IPPROTO_TCP)
-		{
-			tcphdr = tmp->packet + sizeof(struct iphdr);
-			for (uint32_t i = 0; i < nb_ports; i++)
-			{
-				if (ports[i].port == htons(tcphdr->source))
-				{
-					if (TCP_FLAG(tcphdr) == (SYN | ACK))
-						ports[i].flags = SET_ACCESS | OPEN;
-					else
-						ports[i].flags = SET_ACCESS | CLOSE;
-				}
-			}
-		}
-		tmp = tmp->next;
-	}
-	free_scanlist(scanlist);
 	free_handlers(handlers);
 	return ports;
 }
