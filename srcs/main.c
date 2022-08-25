@@ -16,28 +16,11 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 	uint32_t		dst_addr;
 	char			*target_ip;
 
-	target_ip = resolve_hostname(target);
-	if (!target_ip)
-	{
-		fprintf(stderr, "%s: Failed to resolve \"%s\".\n", prog_name, target);
-		return ;
-	}
-	inet_pton(AF_INET, target_ip, &dst_addr);
-	socks.sockfd_tcp = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
-	if (socks.sockfd_tcp < 0)
-	{
-		fprintf(stderr, "%s: socket: %s\n", prog_name, strerror(errno));
-		free(target_ip);
-		return ;
-	}
+	init_socket(target, &socks, &target_ip, &dst_addr);
 	dev_name = get_device();
-	if (!dev_name)
-	{
-		free(target_ip);
+	if (!dev_name) {
 		return ;
 	}
-	int on = 1;
-	setsockopt(socks.sockfd_tcp, IPPROTO_IP, IP_HDRINCL, (const char *)&on, sizeof(on));
 // ===
 // ===
 	struct sockaddr_in sockaddr;
@@ -57,10 +40,8 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 		.saddr = 0,
 		.daddr = dst_addr
 	};
-	if (get_ipv4_addr((int *)&iphdr.saddr, dev_name) == EXIT_FAILURE)
-	{
+	if (get_ipv4_addr((int *)&iphdr.saddr, dev_name) == EXIT_FAILURE) {
 		free(dev_name);
-		free(target_ip);
 		return ;
 	}
 
@@ -73,45 +54,11 @@ void		nmap(char *target, uint32_t *portrange, uint32_t nb_ports)
 		net = 0;
 		mask = 0;
 	}
+
 	t_port_status *ports = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, portrange, nb_ports);
 
-	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
-	printf("PORT      STATUS            SERVICE\n");
-	for (uint32_t i = 0; i < nb_ports; i++)
-	{
-		if (ports[i].flags & SET_ACCESS || ports[i].flags & SET_FILTER)
-		{
-			int		n;
-			struct servent* servi = getservbyport(htons(ports[i].port), "tcp");
-			printf("%d/tcp%n", ports[i].port, &n);
-			printf("%*c", 10 - n, ' ');
-			int		m = 0;
-			if (ports[i].flags & SET_ACCESS)
-			{
-				if (ports[i].flags & OPEN) printf("open%n", &n);
-				else
-					printf("close%n", &n);
-			}
-			if (ports[i].flags & SET_FILTER)
-			{
-				if (ports[i].flags & SET_ACCESS)
-				{
-					printf("|");
-					n++;
-				}
-				if (ports[i].flags & FILTERED)
-					printf("filtered%n", &m);
-				else
-					printf("unfiltered%n", &m);
-				n += m;
-			}
-			printf("%*c", 18 - n, ' ');
-			if (servi)
-				printf("%s\n", servi->s_name);
-			else
-				printf("unknown\n");
-		}
-	}
+	print_report(ports, nb_ports, target, target_ip);
+
 	free(ports);
 	free(dev_name);
 	free(target_ip);
