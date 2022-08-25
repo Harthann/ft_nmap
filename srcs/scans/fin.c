@@ -84,7 +84,7 @@ t_port_status	*scan_fin(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		return (NULL);
 	}
 	/* SETUP PCAP EXIT IN SECONDS */
-	setup_pcap_exit(5);
+	setup_pcap_exit(config->timeout);
 	while (true)
 	{
 		int ret = pcap_dispatch(handle, -1, callback_capture, (void *)&scanlist);

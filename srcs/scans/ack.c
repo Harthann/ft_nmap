@@ -1,13 +1,6 @@
 #include "ft_nmap.h"
 
-pcap_t					*handle = NULL;
-
-void		callback_capture(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet)
-{
-	(void)pkthdr;
-	struct scan_s		**scanlist = (void *)args;
-	*scanlist = new_scanentry(*scanlist, (void *)packet + sizeof(struct sll_header));
-}
+extern pcap_t				*handle;
 
 /* Compute capture and handle flags */
 static void		compute_capture(struct scan_s *scanlist, t_port_status *portrange, int nb_ports)
@@ -25,10 +18,8 @@ static void		compute_capture(struct scan_s *scanlist, t_port_status *portrange, 
 			{
 				if (portrange[i].port == htons(tcphdr->source))
 				{
-					if (TCP_FLAG(tcphdr) == (SYN | ACK))
-						portrange[i].flags = SET_ACCESS | OPEN;
-					else
-						portrange[i].flags = SET_ACCESS | CLOSE;
+					if (TCP_FLAG(tcphdr) == RST)
+						portrange[i].flags = SET_FILTER | UNFILTERED;
 				}
 			}
 		}
@@ -36,12 +27,7 @@ static void		compute_capture(struct scan_s *scanlist, t_port_status *portrange, 
 	}
 }
 
-/*
-** Perform a full Syn scan given a socket and a range of ports
-** Will call sendto defined in send.c with the flag SYN
-** Then call recv_syn to read interesting reponse only
-*/
-t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config)
+t_port_status	*scan_ack(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config)
 {
 	char				errbuf[PCAP_ERRBUF_SIZE];
 	struct scan_s		*scanlist = NULL;
@@ -56,7 +42,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
 		return NULL;
 	}
-	/* INIT PORTS FOR FLAGS FOR SYN SCAN */
+	/* INIT PORTS FOR FLAGS FOR XMAS SCAN */
 	for (uint32_t i = 0; i < config->nb_ports; i++)
 	{
 		ports[i].port = config->portrange[i];
@@ -77,7 +63,7 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		free(ports);
 		return (NULL);
 	}
-	if (thread_send(sockfd, sockaddr, iphdr, SYN, config, ports, send_tcp4_packets, 10))
+	if (thread_send(sockfd, sockaddr, iphdr, ACK, config, ports, send_tcp4_packets, 10))
 	{
 		pcap_freecode(&fp);
 		pcap_close(handle);

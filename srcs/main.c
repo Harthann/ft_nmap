@@ -93,6 +93,11 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 	print_report(ports, config->nb_ports, target, target_ip);
 	free(ports);
 
+	printf("ACK SCAN\n");
+	ports = scan_ack(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
+	print_report(ports, config->nb_ports, target, target_ip);
+	free(ports);
+
 	printf("FIN SCAN\n");
 	ports = scan_fin(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
 	print_report(ports, config->nb_ports, target, target_ip);
@@ -126,7 +131,8 @@ int			main(int ac, char **av)
 		.types = -1,
 		.targets = NULL,
 		.portrange = NULL,
-		.nb_threads = 0
+		.nb_threads = 0,
+		.timeout = 1, // TODO: ping to know how many
 	};
 
 	/*

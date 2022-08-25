@@ -60,6 +60,7 @@ typedef struct scanconf_s {
 	uint32_t	*portrange;
 	uint32_t	nb_ports;
 	uint32_t	nb_threads;
+	int			timeout;
 }	scanconf_t;
 
 
@@ -138,6 +139,8 @@ t_port_status	*scan_fin(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 t_port_status	*scan_xmas(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config);
 /* scans/null.c */
 t_port_status	*scan_null(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config);
+/* scans/ack.c */
+t_port_status	*scan_ack(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config);
 
 /* netutils.c */
 char		*get_device(void);
