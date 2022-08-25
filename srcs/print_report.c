@@ -15,7 +15,8 @@ int		should_print(uint8_t flags, int filtered, int open)
 void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *target_ip)
 {
 	struct servent* servi;
-	int				filtered, open = 0;
+	int				filtered = 0;
+	int				open = 0;
 
 	for (uint32_t i = 0; i < nb_ports; i++) {
 		if (ports[i].flags & SET_FILTER && ports[i].flags & FILTERED)
@@ -25,6 +26,7 @@ void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *t
 	}
 
 	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
+	printf("%d filtered, %d open on %d ports.\n", filtered, open, nb_ports);
 	printf("PORT      STATUS            SERVICE\n");
 
 
