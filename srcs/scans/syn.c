@@ -7,13 +7,6 @@ void		my_callback(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* 
 {
 	(void)args;
 	(void)pkthdr;
-//	struct iphdr *ip = (struct iphdr*)(packet + sizeof(struct sll_header));
-
-//	struct in_addr saddr = {.s_addr = ip->saddr};
-//	struct in_addr daddr = {.s_addr = ip->daddr};
-//	printf("Sizeof eth hdr: %ld\n", sizeof(struct sll_header));
-//	printf("IPv%d:{\nId:%d\nSaddr: %s\nDaddr: %s\n}\n", ntohs(ip->version), ip->id, inet_ntoa(saddr), inet_ntoa(daddr));
-	// TODO: error and mutex
 	pthread_mutex_lock(&mutex);
 	scanlist = new_scanentry(scanlist, (void *)packet + sizeof(struct sll_header));
 	pthread_mutex_unlock(&mutex);
@@ -31,54 +24,6 @@ void		terminate_pcap(int signum)
 		tmp = tmp->next;
 	}
 }
-
-/*
-** Wrap the recvfrom function in order to retreive only response to our syn request
-** Response type:
-**			Syn/Ack: Port open
-**			Rst/Ack: Port close
-**			No response: Filtered
-*/
-//int			recv_syn(int sockfd, struct scan_s *scanlist, t_port_status *ports, int nb_port)
-//{
-//	void					*buffer;
-//	int						len;
-//	struct tcphdr			*tcphdr;
-////	struct iphdr			*iphdr_rcv;
-//
-//	len = sizeof(struct iphdr) + sizeof(struct tcphdr) + DATA_LEN;
-//	buffer = malloc(len);
-//	if (!buffer)
-//		return -ENOMEM;
-//
-//	if (recvfrom(sockfd, buffer, len, 0, NULL, NULL) < 0)
-//	{
-//		free(buffer);
-//		fprintf(stderr, "recvfrom: %s\n", strerror(errno));
-//		free(buffer);
-//		return EXIT_FAILURE;
-//	}
-//
-////	iphdr_rcv = buffer;
-//
-///*
-//** Perform a check if the response correspond to one of our scan
-//** If so check the responses flag and print scan result
-//*/
-//	tcphdr = buffer + sizeof(struct iphdr);
-//	if (find_scan(buffer, scanlist)) {
-//		if (TCP_FLAG(tcphdr) == (SYN | ACK))
-//		{
-//			for (uint32_t i = 0; i < nb_port; i++)
-//			{
-//				if (ports[i].port == htons(tcphdr->source))
-//					ports[i].flags = OPEN;
-//			}
-//		}
-//	}
-//	free(buffer);
-//	return EXIT_SUCCESS;
-//}
 
 typedef struct	s_args {
 	int					sockfd;
@@ -162,13 +107,8 @@ void		*start_capture(void *arg) // THREAD ?
 			printf("error\n");
 			break ;
 		}
-		else if (ret == PCAP_ERROR_BREAK) {
-			printf("error break\n");
+		else if (ret == PCAP_ERROR_BREAK)
 			break ;
-		}
-		else {
-			printf("all fine\n");
-		}
 	}
 	pcap_freecode(&fp);
 	free(args);
@@ -205,27 +145,37 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 
 	if (pthread_mutex_init(&mutex, NULL))
 	{
-		//TODO: problem
+		//TODO: problem + free
 	}
-	pthread_t		threadid[2];
+	pthread_t		*threadid;
+
+	int			nb_threads = 10;
+	threadid = malloc(sizeof(pthread_t) * nb_threads);
+	if (!threadid) // TODO: problem + free
+		return NULL;
 	//int test = port_end / 2;
+	int			handled_ports = 0;
 	t_args *args;
-	for (int i = 0; i < 2; i++)
+	int i = 0;
+	for (; i < nb_threads && handled_ports < (int)nb_ports; i++)
 	{
 		args = malloc(sizeof(t_args));
 		args->sockfd = sockfd;
 		args->sockaddr = sockaddr;
 		args->iphdr = iphdr;
 		args->net = net;
-		args->portrange = portrange + (i * nb_ports / 2);
-		args->nb_ports = nb_ports / 2;
-	//	start_capture(&args);
+		args->portrange = portrange + handled_ports;
+		if (nb_ports / nb_threads)
+			args->nb_ports = ((!i) ? (nb_ports % nb_threads) : 0) + (nb_ports / nb_threads);
+		else
+			args->nb_ports = 1;
 		pthread_create(&threadid[i], NULL, start_capture, args); // TODO: check return
-		//port_start = test + 1;
-		//test *= 2;
+		handled_ports += args->nb_ports;
 	}
-	for (int i = 0; i < 2; i++)
-		pthread_join(threadid[i], NULL); // TODO: check return
+	nb_threads = i;
+	for (;i > 0; --i)
+		pthread_join(threadid[nb_threads - i], NULL); // TODO: check return
+	free(threadid);
 	if (pthread_mutex_destroy(&mutex))
 	{
 		//TODO: problem
