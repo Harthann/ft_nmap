@@ -1,6 +1,5 @@
 #include "ft_nmap.h"
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pcap_t					*handle = NULL;
 
 void		callback_capture(u_char *args, const struct pcap_pkthdr* pkthdr, const u_char* packet)
@@ -83,11 +82,6 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		ports[i].port = portrange[i];
 		ports[i].flags = SET_FILTER | FILTERED;
 	}
-
-	if (pthread_mutex_init(&mutex, NULL))
-	{
-		//TODO: problem + free
-	}
 	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
 	if (!handle)
 	{
@@ -134,10 +128,6 @@ t_port_status	*scan_syn(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	nb_threads = i;
 	for (;i > 0; --i)
 		pthread_join(threadid[nb_threads - i], NULL); // TODO: check return
-	if (pthread_mutex_destroy(&mutex))
-	{
-		//TODO: problem
-	}
 	free(threadid);
 	struct sigaction sa;
 
