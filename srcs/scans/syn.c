@@ -54,34 +54,7 @@ void		*start_capture(void *arg) // THREAD ?
 	{
 		// TODO: problem !
 	}
-	struct pollfd		fds[1];
-	//int		nb_ports;
-
-	//nb_ports = (args->port_end - args->port_start) + 1;
-	memset(fds, 0, sizeof(fds));
-	fds[0].fd = args->sockfd;
-	fds[0].events = POLLOUT | POLLERR;
-
-	uint32_t i = 0;
-	while (true)
-	{
-		int res = poll(fds, 1, 1000);
-		if (res > 0)
-		{
-			if (fds[0].revents & POLLOUT && i < args->nb_ports)
-			{
-				int ret = send_tcp4(args->sockfd, args->sockaddr, args->iphdr, args->portrange[i++].port, SYN);
-				if (ret == -ENOMEM)
-					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
-				else if (ret == EXIT_FAILURE)
-					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
-			}
-			else if (i >= args->nb_ports && fds[0].revents & POLLOUT)
-				fds[0].events = POLLERR;
-		}
-		else if (!res)
-			break ;
-	}
+	send_tcp4_packets(args->sockfd, args->sockaddr, args->iphdr, args->portrange, args->nb_ports, SYN);
 	struct bpf_program fp;
 	struct in_addr daddr = {.s_addr = args->iphdr->saddr};
 	char filter_exp[256];

@@ -135,6 +135,8 @@ int			get_ipv4_addr(int *addr, char *name);
 char		*resolve_hostname(char *hostname);
 
 /* send.c */
+void		send_tcp4_packets(int sockfd, struct sockaddr_in *sockaddr,
+struct iphdr *iphdr, t_port_status *portrange, int nb_ports, int flags);
 int			send_tcp4(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, int dst_port, uint16_t flag);
 
 /* scanlist.c */
