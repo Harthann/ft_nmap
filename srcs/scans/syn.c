@@ -23,6 +23,32 @@ void		terminate_pcap(int signum)
 	}
 }
 
+void		compute_capture(struct scan_s *scanlist, t_port_status *portrange, int nb_ports)
+{
+	struct iphdr		*iphdr;
+	struct tcphdr		*tcphdr;
+
+	while (scanlist)
+	{
+		iphdr = scanlist->packet;
+		if (iphdr->protocol == IPPROTO_TCP)
+		{
+			tcphdr = scanlist->packet + sizeof(struct iphdr);
+			for (int i = 0; i < nb_ports; i++)
+			{
+				if (portrange[i].port == htons(tcphdr->source))
+				{
+					if (TCP_FLAG(tcphdr) == (SYN | ACK))
+						portrange[i].flags = SET_ACCESS | OPEN;
+					else
+						portrange[i].flags = SET_ACCESS | CLOSE;
+				}
+			}
+		}
+		scanlist = scanlist->next;
+	}
+}
+
 typedef struct	s_args {
 	int					sockfd;
 	struct sockaddr_in	*sockaddr;
@@ -83,31 +109,7 @@ void		*start_capture(void *arg) // THREAD ?
 		else if (ret == PCAP_ERROR_BREAK)
 			break ;
 	}
-	struct scan_s *tmp;
-
-	tmp = scanlist;
-	while (tmp)
-	{
-		struct iphdr		*iphdr;
-		struct tcphdr		*tcphdr;
-
-		iphdr = tmp->packet;
-		if (iphdr->protocol == IPPROTO_TCP)
-		{
-			tcphdr = tmp->packet + sizeof(struct iphdr);
-			for (uint32_t i = 0; i < args->nb_ports; i++)
-			{
-				if (args->portrange[i].port == htons(tcphdr->source))
-				{
-					if (TCP_FLAG(tcphdr) == (SYN | ACK))
-						args->portrange[i].flags = SET_ACCESS | OPEN;
-					else
-						args->portrange[i].flags = SET_ACCESS | CLOSE;
-				}
-			}
-		}
-		tmp = tmp->next;
-	}
+	compute_capture(scanlist, args->portrange, args->nb_ports);
 	pcap_freecode(&fp);
 	free_scanlist(scanlist);
 	free(args);
