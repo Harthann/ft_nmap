@@ -147,8 +147,9 @@ bool			find_scan(void* buffer, struct scan_s *scanlist);
 
 
 /* pcap_handlers.c */
-struct pcap_t_handlers *new_handlerentry(struct pcap_t_handlers *head, pcap_t *handle);
-void	free_handlers(struct pcap_t_handlers *handlers);
+struct pcap_t_handlers		*new_handlerentry(struct pcap_t_handlers *head, pcap_t *handle);
+void						free_handlers(struct pcap_t_handlers *handlers);
+int							pcap_setup_filter(pcap_t *handle, struct bpf_program *fp, bpf_u_int32 net, char *filter);
 
 /* checksum.c */
 int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len, uint16_t *sum);

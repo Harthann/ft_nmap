@@ -60,11 +60,12 @@ typedef struct	s_args {
 
 void		*start_capture(void *arg) // THREAD ?
 {
-	struct scan_s			*scanlist = NULL;
-	t_args *args = arg;
-	pcap_t		*handle;
+	char			errbuf[PCAP_ERRBUF_SIZE];
+	struct scan_s	*scanlist = NULL;
+	t_args			*args;
+	pcap_t			*handle;
 
-	char	errbuf[PCAP_ERRBUF_SIZE];
+	args = arg;
 	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
 	if (!handle)
 	{
@@ -72,38 +73,31 @@ void		*start_capture(void *arg) // THREAD ?
 		free(args);
 		return (NULL);
 	}
-	// TODO: mutex and error on new_handlerentry
 	pthread_mutex_lock(&mutex);
 	handlers = new_handlerentry(handlers, handle);
 	pthread_mutex_unlock(&mutex);
 	if (!handlers)
 	{
-		// TODO: problem !
+		fprintf(stderr, "%s: malloc: %s\n", prog_name, strerror(errno));
+		free(args);
+		return (NULL);
 	}
 	send_tcp4_packets(args->sockfd, args->sockaddr, args->iphdr, args->portrange, args->nb_ports, SYN);
-	struct bpf_program fp;
-	struct in_addr daddr = {.s_addr = args->iphdr->saddr};
-	char filter_exp[256];
+	struct bpf_program	fp;
+	struct in_addr		daddr = {.s_addr = args->iphdr->saddr};
+	char				filter_exp[256];
 /* Removed portrange from filter since we don't have linear range now */
 	sprintf(filter_exp, "ip host %s and (tcp or icmp)", inet_ntoa(daddr));
-	if (pcap_compile(handle, &fp, filter_exp, 0, args->net) == PCAP_ERROR) {
-		fprintf(stderr, "%s: pcap_compile: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
-		pcap_freecode(&fp);
+	if (pcap_setup_filter(handle, &fp, args->net, (char *)filter_exp))
+	{
 		free(args);
-		return (NULL); // TODO: free ?
+		return (NULL);
 	}
-	if (pcap_setfilter(handle, &fp) == PCAP_ERROR) {
-		fprintf(stderr, "%s: pcap_setfilter: %s: %s\n", prog_name, filter_exp, pcap_geterr(handle));
-		pcap_freecode(&fp);
-		free(args);
-		return (NULL); // TODO: free ?
-	}
-
-	while (1)
+	while (true)
 	{
 		int ret = pcap_dispatch(handle, -1, callback_capture, (void *)&scanlist);
 		if (ret == PCAP_ERROR) {
-			printf("error\n");
+			fprintf(stderr, "%s: pcap_dispatch: error\n", prog_name);
 			break ;
 		}
 		else if (ret == PCAP_ERROR_BREAK)
