@@ -18,7 +18,7 @@ static void		compute_capture(struct scan_s *scanlist, t_port_status *portrange, 
 			{
 				if (portrange[i].port == htons(tcphdr->source))
 				{
-					if (TCP_FLAG(tcphdr) == RST)
+					if (TCP_FLAG(tcphdr) & RST)
 						portrange[i].flags = SET_FILTER | UNFILTERED;
 				}
 			}
