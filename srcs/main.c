@@ -3,6 +3,45 @@
 
 char				*prog_name = NULL;
 
+t_port_status		*compute_scan_report(t_scans *scans, scanconf_t *config)
+{
+	t_port_status *final_report;
+
+	final_report = malloc(config->nb_ports * sizeof(t_port_status));
+	if (!final_report)
+	{
+		fprintf(stderr, "%s: malloc: %s\n", prog_name, strerror(errno));
+		return (NULL);;
+	}
+	for (uint32_t i = 0; i < config->nb_ports; i++)
+	{
+		final_report[i].port = scans[N_SYN_SCAN].ports[i].port;
+		if (verbose & SCAN_SYN && (scans[N_SYN_SCAN].ports[i].flags & OPEN || scans[N_SYN_SCAN].ports[i].flags & CLOSE)) // SYN SCAN OPEN OR CLOSE
+			final_report[i].flags = scans[N_SYN_SCAN].ports[i].flags;
+		else
+		{
+			int all_flags[16] = {0};
+			for (int j = 1; j < MAX_SCANS - 1; j++)
+			{
+				if (verbose & (2 << j))
+					all_flags[scans[j].ports[i].flags]++;
+			}
+			int max_flags = 0;
+			int max_value = -1;
+			for (int j = 0; j < 16; j++)
+			{
+				if (max_value < all_flags[j])
+				{
+					max_value = all_flags[j];
+					max_flags = j;
+				}
+			}
+			final_report[i].flags = max_flags;
+		}
+	}
+	return (final_report);
+}
+
 /*
 ** Target is a string containing either the ip or the domain name of the target
 ** Ports[0] correspond to the first port to scan and ports[1] the last
@@ -92,6 +131,8 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 	};
 
 	for (int i = 0; i < MAX_SCANS - 1; i++) {
+		if (!(verbose & VERBOSITY))
+			write(STDOUT_FILENO, ".", 1);
 		if (verbose & (2 << i))
 			scans[i].ports = scans[i].scan_function(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
 		if (verbose & VERBOSITY)
@@ -112,6 +153,8 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 
 	if (verbose & SCAN_UDP)
 	{
+		if (!(verbose & VERBOSITY))
+			write(STDOUT_FILENO, ".", 1);
 		scans[N_UDP_SCAN].ports = scans[N_UDP_SCAN].scan_function(socks.sockfd_udp, &sockaddr, &iphdr, net, config);
 		if (verbose & VERBOSITY)
 		{
@@ -119,12 +162,13 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 			print_report(scans[N_UDP_SCAN].ports, config->nb_ports, "udp");
 		}
 	}
-
+	if (!(verbose & VERBOSITY))
+		write(STDOUT_FILENO, "\n", 1);
 	t_port_status *final_report;
-	final_report = malloc(config->nb_ports * sizeof(t_port_status));
+
+	final_report = compute_scan_report(scans, config);
 	if (!final_report)
 	{
-		fprintf(stderr, "%s: malloc: %s\n", prog_name, strerror(errno));
 		for (int i = 0; i < MAX_SCANS; i++)
 			free(scans[i].ports);
 		free(dev_name);
@@ -132,32 +176,6 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 		return ;
 	}
 
-	for (uint32_t i = 0; i < config->nb_ports; i++)
-	{
-		final_report[i].port = scans[N_SYN_SCAN].ports[i].port;
-		if (verbose & SCAN_SYN && (scans[N_SYN_SCAN].ports[i].flags & OPEN || scans[N_SYN_SCAN].ports[i].flags & CLOSE)) // SYN SCAN OPEN OR CLOSE
-			final_report[i].flags = scans[N_SYN_SCAN].ports[i].flags;
-		else
-		{
-			int all_flags[16] = {0};
-			for (int j = 1; j < MAX_SCANS - 1; j++)
-			{
-				if (verbose & (2 << j))
-					all_flags[scans[j].ports[i].flags]++;
-			}
-			int max_flags = 0;
-			int max_value = -1;
-			for (int j = 0; j < 16; j++)
-			{
-				if (max_value < all_flags[j])
-				{
-					max_value = all_flags[j];
-					max_flags = j;
-				}
-			}
-			final_report[i].flags = max_flags;
-		}
-	}
 	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
 	if (verbose & 0x3f)
 		print_report(final_report, config->nb_ports, "tcp");
