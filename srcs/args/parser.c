@@ -72,7 +72,7 @@ static char ft_longopt
 	}
 	*nextj = 1;
 	if (longopt[*i].flag != NULL)
-		*longopt[*i].flag = 1;
+		*longopt[*i].flag |= 1;
 	if (longopt[*i].shortcut != '\0' || longopt[*i].flag != NULL)
 		return longopt[*i].shortcut;
 	return '!';

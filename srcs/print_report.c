@@ -3,7 +3,7 @@
 
 int		should_print(uint8_t flags, int max_flag)
 {
-	if (verbose)
+	if (verbose & VERBOSITY)
 		return 1;
 	if (flags != max_flag)
 		return 1;
