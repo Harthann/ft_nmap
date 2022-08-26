@@ -10,7 +10,7 @@ int		should_print(uint8_t flags, int max_flag)
 	return 0;
 }
 
-void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *target_ip)
+void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *target_ip, char *type)
 {
 	struct servent* servi;
 	int				flags[16] = {0};
@@ -31,7 +31,7 @@ void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *t
 	}
 
 	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
-	printf("Not shown: %d ", max_value);
+	printf("Not shown: %d %s ", max_value, type);
 	if (max_flag & SET_ACCESS) {
 		printf("%s", max_flag & OPEN ? "opened" : "closed");
 	}
@@ -49,7 +49,7 @@ void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *t
 			int		n;
 			int		m = 0;
 
-			printf("%d/tcp%n", ports[i].port, &n);
+			printf("%d/%s%n", ports[i].port, type, &n);
 			printf("%*c", 10 - n, ' ');
 			servi = getservbyport(htons(ports[i].port), "tcp");
 

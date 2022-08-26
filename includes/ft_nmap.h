@@ -176,7 +176,7 @@ void		handling_signals();
 void		setup_pcap_exit(int seconds);
 
 /* print_report.c */
-void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *target_ip);
+void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *target_ip, char *type);
 
 #endif
 
