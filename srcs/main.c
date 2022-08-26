@@ -189,7 +189,7 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 	free(target_ip);
 }
 
-void		signature(void)
+struct timeval		signature(void)
 {
 	struct tm		*info;
 	struct timeval	tv;
@@ -200,11 +200,13 @@ void		signature(void)
 	info = localtime(&t);
 	printf("Starting %s %s at %d-%02d-%02d %02d:%02d CEST\n", PROG_NAME, VERSION,
 info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min);
+	return (tv);
 }
 
 int			main(int ac, char **av)
 {
-	scanconf_t	config = {
+	struct timeval	start;
+	scanconf_t		config = {
 		.types = -1,
 		.targets = NULL,
 		.portrange = NULL,
@@ -235,14 +237,22 @@ int			main(int ac, char **av)
 	/*
 	** Preparing the program to perform scans
 	*/
-	signature();
+	start = signature();
 	handling_signals();
 
 	/*
 	** For each ip found inside arguments we'll perform a scan
 	*/
-	for (size_t i = 0; config.targets[i]; i++)
+	size_t i = 0;
+	for (; config.targets[i]; i++)
 		nmap(config.targets[i], &config);
+
+	struct timeval end;
+
+	gettimeofday(&end, NULL);
+	long seconds = (end.tv_sec - start.tv_sec);
+	long micros = (((seconds * 1000000) + end.tv_usec) - (start.tv_usec)) / 1000000;
+	printf("%s done: %ld IP address scanned in %ld.%02ld seconds\n", prog_name, i, seconds, micros);
 
 	freeiplist(config.targets);
 	free(config.portrange);
