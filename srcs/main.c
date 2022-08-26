@@ -88,25 +88,25 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 	print_report(ports, config->nb_ports, target, target_ip);
 	free(ports);
 
-	printf("NULL SCAN\n");
-	ports = scan_null(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
-	print_report(ports, config->nb_ports, target, target_ip);
-	free(ports);
-
-	printf("ACK SCAN\n");
-	ports = scan_ack(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
-	print_report(ports, config->nb_ports, target, target_ip);
-	free(ports);
-
-	printf("FIN SCAN\n");
-	ports = scan_fin(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
-	print_report(ports, config->nb_ports, target, target_ip);
-	free(ports);
-
-	printf("XMAS SCAN\n");
-	ports = scan_xmas(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
-	print_report(ports, config->nb_ports, target, target_ip);
-	free(ports);
+//	printf("NULL SCAN\n");
+//	ports = scan_null(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
+//	print_report(ports, config->nb_ports, target, target_ip);
+//	free(ports);
+//
+//	printf("ACK SCAN\n");
+//	ports = scan_ack(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
+//	print_report(ports, config->nb_ports, target, target_ip);
+//	free(ports);
+//
+//	printf("FIN SCAN\n");
+//	ports = scan_fin(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
+//	print_report(ports, config->nb_ports, target, target_ip);
+//	free(ports);
+//
+//	printf("XMAS SCAN\n");
+//	ports = scan_xmas(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
+//	print_report(ports, config->nb_ports, target, target_ip);
+//	free(ports);
 
 	free(dev_name);
 	free(target_ip);
@@ -151,6 +151,7 @@ int			main(int ac, char **av)
 	if (parse_arg(ac - 1, av + 1, &config) != 0)
 	{
 		free(prog_name);
+		freeiplist(config.targets);
 		return EXIT_FAILURE;
 	}
 
@@ -166,6 +167,7 @@ int			main(int ac, char **av)
 	for (size_t i = 0; config.targets[i]; i++)
 		nmap(config.targets[i], &config);
 
+	freeiplist(config.targets);
 	free(config.portrange);
 	free(prog_name);
 	return EXIT_SUCCESS;
