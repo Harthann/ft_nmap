@@ -51,6 +51,7 @@
 # define		FILTERED		0x08
 # define		UNFILTERED		0x00
 
+
 extern char *prog_name;
 
 /*=== STRUCTURES ===*/
@@ -94,6 +95,12 @@ typedef struct	s_args_send {
 	int					nb_ports;
 	int					flags;
 }				t_args_send;
+
+
+typedef struct scans_s {
+	t_port_status *(*scan_function)(int, struct sockaddr_in*, struct iphdr*, bpf_u_int32, scanconf_t*);
+	t_port_status *ports;
+} t_scans;
 
 /*=== MACROS ===*/
 

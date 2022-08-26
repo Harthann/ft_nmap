@@ -11,9 +11,9 @@ extern char	verbose;
 
 #define VERBOSITY	0x01
 #define SCAN_SYN	0x02
-#define SCAN_ACK	0x04
-#define SCAN_FIN	0x08
-#define SCAN_NULL	0x10
+#define SCAN_NULL	0x04
+#define SCAN_ACK	0x08
+#define SCAN_FIN	0x10
 #define SCAN_XMAS	0x20
 #define SCAN_UDP	0x30
 
