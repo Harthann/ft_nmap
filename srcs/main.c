@@ -77,12 +77,12 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 /*
 ** Initialize socket for tcp packet scan
 */
-	if (init_socket(&socks.sockfd_tcp, IPPROTO_TCP) == EXIT_FAILURE) {
+	if (verbose & 0x3f &&
+init_socket(&socks.sockfd_tcp, IPPROTO_TCP) == EXIT_FAILURE)
 		return ;
-	}
-	if (init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE) {
+	if (verbose & SCAN_UDP &&
+init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 		return ;
-	}
 
 /*
 ** Resolve hostname and get ip in string format and uint format
