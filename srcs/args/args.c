@@ -86,7 +86,7 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				return EXIT_FAILURE;
 		}
 	}
-	if (g_arglist == NULL) {
+	if (g_arglist == NULL && config->targets == NULL) {
 		printf("Error: Missing argument\n");
 		print_help(options_descriptor);
 		return EXIT_FAILURE;
