@@ -141,6 +141,8 @@ t_port_status	*scan_xmas(int sockfd, struct sockaddr_in *sockaddr, struct iphdr 
 t_port_status	*scan_null(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config);
 /* scans/ack.c */
 t_port_status	*scan_ack(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config);
+/* scans/udp.c */
+t_port_status	*scan_udp(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config);
 
 /* netutils.c */
 char		*get_device(void);
@@ -150,8 +152,10 @@ int			init_socket(int *fd, int proto);
 
 /* send.c */
 int				thread_send(int sockfd, struct sockaddr_in * sockaddr, struct iphdr *iphdr, int flags, scanconf_t *config, t_port_status *ports, void *(fn(void *)), int nb_threads);
+void		*send_udp4_packets(void *args);
 void		*send_tcp4_packets(void *args);
 int			send_tcp4(int sockfd, struct sockaddr_in sockaddr, struct iphdr iphdr, int dst_port, uint16_t flag);
+int			send_udp4(int sockfd, struct sockaddr_in sockaddr, struct iphdr iphdr, int dst_port);
 
 /* scanlist.c */
 struct scan_s	*new_scanentry(struct scan_s *head, void *buffer);
@@ -165,6 +169,7 @@ int		pcap_setup_filter(pcap_t *handle, struct bpf_program *fp, bpf_u_int32 net, 
 
 /* checksum.c */
 int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, int data_len, uint16_t *sum);
+int		udp4_checksum(struct iphdr *iphdr, struct udphdr *udphdr, uint8_t *data, int data_len, uint16_t *sum);
 
 /* signal.c */
 void		handling_signals();
