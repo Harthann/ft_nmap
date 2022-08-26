@@ -81,59 +81,52 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 		net = 0;
 		mask = 0;
 	}
+// ==> SCANNING <==
+	t_scans			scans[MAX_SCANS] = {
+		{scan_syn, NULL},
+		{scan_null, NULL},
+		{scan_ack, NULL},
+		{scan_fin, NULL},
+		{scan_xmas, NULL},
+		{scan_udp, NULL}
+	};
 
-/*
-** Everything is initialized, we can now perfrom each scan
-*/
-	int nb_scans = 6;
-	t_port_status **ports;
-
-	ports = malloc(sizeof(t_port_status *) * nb_scans);
-	if (!ports)
-	{
-		fprintf(stderr, "%s: malloc: %s\n", prog_name, strerror(errno));
-		free(dev_name);
-		free(target_ip);
-		return ;
+	for (int i = 0; i < MAX_SCANS - 1; i++) {
+		if (verbose & (2 << i))
+			scans[i].ports = scans[i].scan_function(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
+		if (verbose & VERBOSITY)
+		{
+			if (i == N_SYN_SCAN)
+				printf("-- VERBOSE --> SYN SCAN\n");
+			else if (i == N_NULL_SCAN)
+				printf("-- VERBOSE --> NULL SCAN\n");
+			else if (i == N_ACK_SCAN)
+				printf("-- VERBOSE --> ACK SCAN\n");
+			else if (i == N_FIN_SCAN)
+				printf("-- VERBOSE --> FIN SCAN\n");
+			else if (i == N_XMAS_SCAN)
+				printf("-- VERBOSE --> XMAS SCAN\n");
+			print_report(scans[i].ports, config->nb_ports, "tcp");
+		}
 	}
 
-	printf("SYN SCAN\n");
-	ports[0] = scan_syn(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
-	if (verbose)
-		print_report(ports[0], config->nb_ports, target, target_ip, "tcp");
-
-	printf("NULL SCAN\n");
-	ports[1] = scan_null(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
-	if (verbose)
-		print_report(ports[1], config->nb_ports, target, target_ip, "tcp");
-
-	printf("ACK SCAN\n");
-	ports[2] = scan_ack(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
-	if (verbose)
-		print_report(ports[2], config->nb_ports, target, target_ip, "tcp");
-
-	printf("FIN SCAN\n");
-	ports[3] = scan_fin(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
-	if (verbose)
-		print_report(ports[3], config->nb_ports, target, target_ip, "tcp");
-
-	printf("XMAS SCAN\n");
-	ports[4] = scan_xmas(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
-	if (verbose)
-		print_report(ports[4], config->nb_ports, target, target_ip, "tcp");
-	printf("UDP SCAN\n");
-	ports[5] = scan_udp(socks.sockfd_udp, &sockaddr, &iphdr, net, config);
-	if (verbose)
-		print_report(ports[5], config->nb_ports, target, target_ip, "udp");
+	if (verbose & SCAN_UDP)
+	{
+		scans[N_UDP_SCAN].ports = scans[N_UDP_SCAN].scan_function(socks.sockfd_udp, &sockaddr, &iphdr, net, config);
+		if (verbose & VERBOSITY)
+		{
+			printf("-- VERBOSE --> UDP SCAN\n");
+			print_report(scans[N_UDP_SCAN].ports, config->nb_ports, "udp");
+		}
+	}
 
 	t_port_status *final_report;
 	final_report = malloc(config->nb_ports * sizeof(t_port_status));
 	if (!final_report)
 	{
 		fprintf(stderr, "%s: malloc: %s\n", prog_name, strerror(errno));
-		for (int i = 0; i < nb_scans; i++)
-			free(ports[i]);
-		free(ports);
+		for (int i = 0; i < MAX_SCANS; i++)
+			free(scans[i].ports);
 		free(dev_name);
 		free(target_ip);
 		return ;
@@ -141,14 +134,17 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 
 	for (uint32_t i = 0; i < config->nb_ports; i++)
 	{
-		final_report[i].port = ports[0][i].port;
-		if (ports[0][i].flags & OPEN || ports[0][i].flags & CLOSE) // SYN SCAN OPEN OR CLOSE
-			final_report[i].flags = ports[0][i].flags;
+		final_report[i].port = scans[N_SYN_SCAN].ports[i].port;
+		if (verbose & SCAN_SYN && (scans[N_SYN_SCAN].ports[i].flags & OPEN || scans[N_SYN_SCAN].ports[i].flags & CLOSE)) // SYN SCAN OPEN OR CLOSE
+			final_report[i].flags = scans[N_SYN_SCAN].ports[i].flags;
 		else
 		{
 			int all_flags[16] = {0};
-			for (int j = 1; j < nb_scans - 1; j++)
-				all_flags[ports[j][i].flags]++;
+			for (int j = 1; j < MAX_SCANS - 1; j++)
+			{
+				if (verbose & (2 << j))
+					all_flags[scans[j].ports[i].flags]++;
+			}
 			int max_flags = 0;
 			int max_value = -1;
 			for (int j = 0; j < 16; j++)
@@ -162,15 +158,15 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 			final_report[i].flags = max_flags;
 		}
 	}
-	print_report(final_report, config->nb_ports, target, target_ip, "tcp");
-	print_report(ports[5], config->nb_ports, target, target_ip, "udp");
+	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
+	if (verbose & 0x3f)
+		print_report(final_report, config->nb_ports, "tcp");
+	if (verbose & SCAN_UDP)
+		print_report(scans[N_UDP_SCAN].ports, config->nb_ports, "udp");
 
 	free(final_report);
-	for (int i = 0; i < nb_scans; i++)
-		free(ports[i]);
-	free(ports);
-
-
+	for (int i = 0; i < MAX_SCANS; i++)
+		free(scans[i].ports);
 	free(dev_name);
 	free(target_ip);
 }

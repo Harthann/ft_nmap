@@ -84,41 +84,6 @@ void	ipfromfile(scanconf_t *config, char *file)
 	free(buffer);
 }
 
-char **split(char *str) {
-	int		words = 0;
-	int		count = 0;
-	char	*tmp = str;
-	char	**dst = NULL;
-
-	while (*tmp) {
-		if (*tmp == '\n')
-			words += 1;
-		tmp += 1;
-	}
-
-	dst = calloc(words + 1, sizeof(char*));
-	if (!dst)
-		return NULL;
-
-	tmp = str;
-	for (int i = 0; i < words; i++) {
-		count = 0;
-		while (tmp[count] != '\n' && tmp[count])
-			count += 1;
-
-		dst[i] = calloc(count + 1, sizeof(char));
-		if (dst[i]) {
-			memcpy(dst[i], tmp, count);
-			tmp += count + 1;
-		} else {
-			freeiplist(dst);
-			return NULL;
-		}
-	}
-
-	return dst;
-}
-
 void	freeiplist(char **list) {
 	char **tmp = list;
 

@@ -3,14 +3,12 @@
 
 int		should_print(uint8_t flags, int max_flag)
 {
-	if (verbose)
-		return 1;
 	if (flags != max_flag)
 		return 1;
 	return 0;
 }
 
-void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *target_ip, char *type)
+void	print_report(t_port_status *ports, uint32_t nb_ports, char *type)
 {
 	struct servent* servi;
 	int				flags[16] = {0};
@@ -30,7 +28,6 @@ void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *t
 		}
 	}
 
-	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
 	printf("Not shown: %d %s ", max_value, type);
 	if (max_flag & SET_ACCESS) {
 		printf("%s", max_flag & OPEN ? "opened" : "closed");

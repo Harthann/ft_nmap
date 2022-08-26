@@ -21,7 +21,7 @@ struct s_optdesc options_descriptor[] = {
 	{"ip",		ARGREQ, 0, 0, DESC_IP},
 	{"file",	ARGREQ, 0, 0, DESC_FILE},
 	{"ports",	ARGREQ, 0, 0, DESC_PORTS},
-	{"scan",	ARGREQ, 0, 0, DESC_SCAN},
+	{"scan",	ARGREQ, 0, 's', DESC_SCAN},
 	{"speedup",	ARGREQ, 0, 0, DESC_SPEED},
 	{"verbose", NO_ARG, &verbose, 'v', DESC_VERB},
 
@@ -30,29 +30,39 @@ struct s_optdesc options_descriptor[] = {
 
 void	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 
-	(void)config;
 	switch (option_index)
 	{
 		case 0:
 			break ;
+
 		case 1:
 			config->targets = addip(config->targets, ft_optarg);
 			return ;
+
 		case 2:
 			ipfromfile(config, ft_optarg);
-			// for each line appen the ip to targ list
 			return ;
+
 		case 3:
 			printf("Found ports range\n");
-			//config->portrange[0] = atoi(ft_optarg);
-			//config->portrange[1] = atoi(strchr(ft_optarg, '-') + 1);
 			return ;
+
 		case 4:
-			TODO("option scan");
-			break ;
+			// This option is handle using it's shorthand option
+			return ;
+
 		case 5:
-			TODO("option speedup");
-			break ;
+			if (!is_numeric(ft_optarg) || ft_optarg[0] == '-') {
+				printf("Threads number should be a positive integer between 0 and 255\n");
+				break;
+			}
+			config->nb_threads = atoi(ft_optarg);
+			if (config->nb_threads > 255) {
+				printf("Threads number should be a positive integer between 0 and 255\n");
+				break;
+			}
+			return ;
+
 		default:
 			printf("Option: %s not found\n", option);
 	}
@@ -78,8 +88,16 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				freeiplist(config->targets);
 				free(prog_name);
 				exit(0);
+			case 's':
+				if (!addscan(ft_optarg)) {
+					printf("Scan {%s} not known\n", ft_optarg);
+					print_help(options_descriptor);
+					return EXIT_FAILURE;
+				}
+				break ;
 			case '!':
 				parse_longoptions(option_index, av[ft_optind], config);
+				printf("Found long opt\n");
 				break ;
 			case '?':
 				print_help(options_descriptor);
@@ -98,7 +116,13 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 		config->nb_ports = 1024;
 	}
 	printf("Port range: %d %d\n", config->portrange[0], config->portrange[1]);
+	if (config->nb_threads > config->nb_ports)
+		config->nb_threads = config->nb_ports;
 
+	printf("Threads nummber: %d\n", config->nb_threads);
+	if (verbose == 0 || verbose == 1)
+		verbose |= SCAN_SYN | SCAN_NULL | SCAN_FIN | SCAN_XMAS | SCAN_ACK | SCAN_UDP;
+	printf("Asked scan: %d\n", verbose);
 	config->targets = appendlist(config->targets, g_arglist);
 	return 0;
 }
