@@ -21,7 +21,7 @@ char	ft_optopt = 0;
 */
 char	*ft_optarg = 0;
 
-void getopt_release () __attribute__((destructor));
+//void getopt_release () __attribute__((destructor));
 
 void getopt_release(void) {
 	free(g_arglist);
@@ -85,6 +85,9 @@ static char grow_arglist(char **av, int *nexti, int *nextj)
 	char		**tmp = NULL;
 
 	tmp = malloc((arglist_len + 1) * sizeof(char*));
+	if (!tmp) {
+		// TODO ERROR
+	}
 	memset(tmp, 0, (arglist_len + 1) * sizeof(char*));
 
 	if (g_arglist) {
@@ -96,7 +99,7 @@ static char grow_arglist(char **av, int *nexti, int *nextj)
 		g_arglist = tmp;
 	}
 	arglist_len += 1;
-	g_arglist[arglist_len - 2] = av[*nexti];
+	g_arglist[arglist_len - 2] = strdup(av[*nexti]);
 	*nexti += 1;
 	*nextj = 1;
 	return '\0';

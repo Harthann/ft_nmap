@@ -121,7 +121,6 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 	ports[4] = scan_xmas(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
 	if (verbose)
 		print_report(ports[4], config->nb_ports, target, target_ip, "tcp");
-
 	printf("UDP SCAN\n");
 	ports[5] = scan_udp(socks.sockfd_udp, &sockaddr, &iphdr, net, config);
 	if (verbose)
@@ -215,6 +214,7 @@ int			main(int ac, char **av)
 	if (parse_arg(ac - 1, av + 1, &config) != 0)
 	{
 		free(prog_name);
+		freeiplist(config.targets);
 		return EXIT_FAILURE;
 	}
 
@@ -230,6 +230,7 @@ int			main(int ac, char **av)
 	for (size_t i = 0; config.targets[i]; i++)
 		nmap(config.targets[i], &config);
 
+	freeiplist(config.targets);
 	free(config.portrange);
 	free(prog_name);
 	return EXIT_SUCCESS;

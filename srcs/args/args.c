@@ -36,13 +36,14 @@ void	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 		case 0:
 			break ;
 		case 1:
-			TODO("option ip");
-			break ;
+			config->targets = addip(config->targets, ft_optarg);
+			return ;
 		case 2:
-			TODO("option file");
-			break ;
+			ipfromfile(config, ft_optarg);
+			// for each line appen the ip to targ list
+			return ;
 		case 3:
-			printf("FOund ports range\n");
+			printf("Found ports range\n");
 			//config->portrange[0] = atoi(ft_optarg);
 			//config->portrange[1] = atoi(strchr(ft_optarg, '-') + 1);
 			return ;
@@ -74,19 +75,18 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 		{
 			case 'h':
 				print_help(options_descriptor);
-				getopt_release();
+				freeiplist(config->targets);
+				free(prog_name);
 				exit(0);
 			case '!':
 				parse_longoptions(option_index, av[ft_optind], config);
-				printf("Found long opt %s with arg %s\n", av[ft_optind], ft_optarg);
 				break ;
 			case '?':
 				print_help(options_descriptor);
-				getopt_release();
-				exit(0);
+				return EXIT_FAILURE;
 		}
 	}
-	if (g_arglist == NULL) {
+	if (g_arglist == NULL && config->targets == NULL) {
 		printf("Error: Missing argument\n");
 		print_help(options_descriptor);
 		return EXIT_FAILURE;
@@ -98,6 +98,7 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 		config->nb_ports = 1024;
 	}
 	printf("Port range: %d %d\n", config->portrange[0], config->portrange[1]);
-	config->targets = g_arglist;
+
+	config->targets = appendlist(config->targets, g_arglist);
 	return 0;
 }

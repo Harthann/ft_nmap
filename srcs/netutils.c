@@ -76,8 +76,10 @@ char		*resolve_hostname(char *hostname)
 	if (!getaddrinfo(hostname, NULL, &hints, &res))
 	{
 		addr = malloc(MAX_ADDR_SIZE);
-		if (!addr)
+		if (!addr) {
+			freeaddrinfo(res);
 			return (NULL);
+		}
 		buffer = inet_ntoa(((struct sockaddr_in *)res->ai_addr)->sin_addr);
 		strcpy(addr, buffer);
 		freeaddrinfo(res);
