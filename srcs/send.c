@@ -14,7 +14,7 @@ int				thread_send(int sockfd, struct sockaddr_in * sockaddr, struct iphdr *iphd
 	int			handled_ports = 0;
 	t_args_send *args;
 	int i = 0;
-	for (; i < nb_threads && handled_ports < (int)config->nb_ports; i++)
+	for (;(i < nb_threads && handled_ports < (int)config->nb_ports) || (!i && !nb_threads); i++)
 	{
 		args = malloc(sizeof(t_args_send));
 		if (!args)
@@ -26,17 +26,25 @@ int				thread_send(int sockfd, struct sockaddr_in * sockaddr, struct iphdr *iphd
 		args->sockaddr = *sockaddr;
 		args->iphdr = *iphdr;
 		args->portrange = ports + handled_ports;
-		if (config->nb_ports / nb_threads)
+		if (nb_threads && config->nb_ports / nb_threads)
 			args->nb_ports = ((!i) ? (config->nb_ports % nb_threads) : 0) + (config->nb_ports / nb_threads);
+		else if (!nb_threads)
+			args->nb_ports = config->nb_ports;
 		else
 			args->nb_ports = 1;
 		args->flags = flags;
 		handled_ports += args->nb_ports;
-		pthread_create(&threadid[i], NULL, fn, args); // TODO: check return
+		if (nb_threads)
+			pthread_create(&threadid[i], NULL, fn, args); // TODO: check return
+		else
+			fn(args);
 	}
-	nb_threads = i;
-	for (;i > 0; --i)
-		pthread_join(threadid[nb_threads - i], NULL); // TODO: check return
+	if (nb_threads)
+	{
+		nb_threads = i;
+		for (;i > 0; --i)
+			pthread_join(threadid[nb_threads - i], NULL); // TODO: check return
+	}
 	free(threadid);
 	return EXIT_SUCCESS;
 }

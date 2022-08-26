@@ -76,7 +76,7 @@ t_port_status	*scan_null(int sockfd, struct sockaddr_in *sockaddr, struct iphdr 
 		free(ports);
 		return (NULL);
 	}
-	if (thread_send(sockfd, sockaddr, iphdr, 0, config, ports, send_tcp4_packets, 10))
+	if (thread_send(sockfd, sockaddr, iphdr, 0, config, ports, send_tcp4_packets, config->nb_threads))
 	{
 		pcap_freecode(&fp);
 		pcap_close(handle);
