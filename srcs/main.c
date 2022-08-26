@@ -193,9 +193,9 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 //			print_report(ports[4], config->nb_ports, target, target_ip, "tcp");
 //	}
 
-	if (verbose & SCAN_UDP) {
-		printf("UDP SCAN\n");
-		scans[5].ports = scan_udp(socks.sockfd_udp, &sockaddr, &iphdr, net, config);
+	if (verbose & SCAN_UDP)
+	{
+		scans[5].ports = scans[5].scan_function(socks.sockfd_udp, &sockaddr, &iphdr, net, config);
 		if (verbose & VERBOSITY)
 			print_report(scans[5].ports, config->nb_ports, target, target_ip, "udp");
 	}
@@ -212,31 +212,33 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 		return ;
 	}
 
-//	for (uint32_t i = 0; i < config->nb_ports; i++)
-//	{
-//		final_report[i].port = ports[0][i].port;
-//		if (ports[0][i].flags & OPEN || ports[0][i].flags & CLOSE) // SYN SCAN OPEN OR CLOSE
-//			final_report[i].flags = ports[0][i].flags;
-//		else
-//		{
-//			int all_flags[16] = {0};
-//			for (int j = 1; j < nb_scans - 1; j++)
-//				all_flags[ports[j][i].flags]++;
-//			int max_flags = 0;
-//			int max_value = -1;
-//			for (int j = 0; j < 16; j++)
-//			{
-//				if (max_value < all_flags[j])
-//				{
-//					max_value = all_flags[j];
-//					max_flags = j;
-//				}
-//			}
-//			final_report[i].flags = max_flags;
-//		}
-//	}
+	for (uint32_t i = 0; i < config->nb_ports; i++)
+	{
+		final_report[i].port = scans[0].ports[i].port;
+		if (verbose & SCAN_SYN && (scans[0].ports[i].flags & OPEN || scans[0].ports[i].flags & CLOSE)) // SYN SCAN OPEN OR CLOSE
+			final_report[i].flags = scans[0].ports[i].flags;
+		else
+		{
+			int all_flags[16] = {0};
+			for (int j = 1; j < nb_scans - 1; j++)
+			{
+				if (verbose & (2 << j))
+					all_flags[scans[j].ports[i].flags]++;
+			}
+			int max_flags = 0;
+			int max_value = -1;
+			for (int j = 0; j < 16; j++)
+			{
+				if (max_value < all_flags[j])
+				{
+					max_value = all_flags[j];
+					max_flags = j;
+				}
+			}
+			final_report[i].flags = max_flags;
+		}
+	}
 	print_report(final_report, config->nb_ports, target, target_ip, "tcp");
-
 	print_report(scans[5].ports, config->nb_ports, target, target_ip, "udp");
 
 	free(final_report);
