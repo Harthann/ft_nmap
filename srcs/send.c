@@ -80,6 +80,44 @@ void		*send_tcp4_packets(void *args)
 }
 
 /*
+** Send multiple udp4 packets using tcp protocol
+** call to udp4
+*/
+void		*send_udp4_packets(void *args)
+{
+	t_args_send			*send;
+	int					i, res, ret;
+	struct pollfd		fds[1];
+
+	send = args;
+	memset(fds, 0, sizeof(fds));
+	fds[0].fd = send->sockfd;
+	fds[0].events = POLLOUT | POLLERR;
+	i = 0;
+	while (true)
+	{
+		res = poll(fds, 1, 1000);
+		if (res > 0)
+		{
+			if (fds[0].revents & POLLOUT && i < send->nb_ports)
+			{
+				ret = send_udp4(send->sockfd, send->sockaddr, send->iphdr, send->portrange[i++].port);
+				if (ret == -ENOMEM)
+					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
+				else if (ret == EXIT_FAILURE)
+					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
+			}
+			else if (i >= send->nb_ports && fds[0].revents & POLLOUT)
+				fds[0].events = POLLERR;
+		}
+		else if (!res)
+			break ;
+	}
+	free(send);
+	return (NULL);
+}
+
+/*
 ** Send a packet using tcp protocol
 ** Take a flag parameter to fill the type of tcp you send
 ** Flags are defined in ft_nmap
@@ -91,6 +129,7 @@ int			send_tcp4(int sockfd, struct sockaddr_in sockaddr, struct iphdr iphdr, int
 	void			*data;
 	struct tcphdr	*tcphdr;
 
+	iphdr.protocol = IPPROTO_TCP;
 	iphdr.tot_len = sizeof(struct iphdr) + sizeof(struct tcphdr) + DATA_LEN;
 
 	buffer = calloc(iphdr.tot_len, sizeof(uint8_t));
@@ -126,4 +165,46 @@ int			send_tcp4(int sockfd, struct sockaddr_in sockaddr, struct iphdr iphdr, int
 	return EXIT_SUCCESS;
 }
 
+/*
+** Send a packet using udp protocol
+** Once send is success, the packet is added to a scanlist
+*/
+int			send_udp4(int sockfd, struct sockaddr_in sockaddr, struct iphdr iphdr, int dst_port)
+{
+	void			*buffer;
+	void			*data;
+	struct udphdr	*udphdr;
 
+	iphdr.protocol = IPPROTO_UDP;
+	iphdr.tot_len = sizeof(struct iphdr) + sizeof(struct udphdr) + DATA_LEN;
+
+	buffer = calloc(iphdr.tot_len, sizeof(uint8_t));
+	if (!buffer)
+		return -ENOMEM;
+
+	udphdr = buffer + sizeof(struct iphdr);
+	data = buffer + sizeof(struct iphdr) + sizeof(struct udphdr);
+	memcpy(buffer, &iphdr, sizeof(struct iphdr));
+
+	udphdr = buffer + sizeof(struct iphdr);
+	udphdr->source = htons(33450);
+	udphdr->dest = htons(dst_port);
+	udphdr->len = htons(sizeof(struct udphdr) + DATA_LEN);
+	udphdr->check = 0;
+
+//	memset(data, 42, DATA_LEN);
+	if (udp4_checksum(&iphdr, udphdr, data, DATA_LEN, &udphdr->check))
+	{
+		free(buffer);
+		return -ENOMEM;
+	}
+	
+	if (sendto(sockfd, buffer, iphdr.tot_len, 0, (struct sockaddr *)&sockaddr, sizeof(struct sockaddr)) < 0)
+	{
+		free(buffer);
+		return EXIT_FAILURE;
+
+	}
+	free(buffer);
+	return EXIT_SUCCESS;
+}

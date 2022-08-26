@@ -6,20 +6,37 @@ extern pcap_t				*handle;
 static void		compute_capture(struct scan_s *scanlist, t_port_status *portrange, int nb_ports)
 {
 	struct iphdr		*iphdr;
-	struct tcphdr		*tcphdr;
+	struct udphdr		*udphdr;
+	struct icmphdr		*icmphdr;
 
 	while (scanlist)
 	{
 		iphdr = scanlist->packet;
-		if (iphdr->protocol == IPPROTO_TCP)
+		if (iphdr->protocol == IPPROTO_UDP)
 		{
-			tcphdr = scanlist->packet + sizeof(struct iphdr);
+			udphdr = scanlist->packet + sizeof(struct iphdr);
 			for (int i = 0; i < nb_ports; i++)
 			{
-				if (portrange[i].port == htons(tcphdr->source))
+				if (portrange[i].port == htons(udphdr->source))
+					portrange[i].flags = SET_ACCESS | OPEN;
+			}
+		}
+		else if (iphdr->protocol == IPPROTO_ICMP)
+		{
+			icmphdr = scanlist->packet + sizeof(struct iphdr);
+			iphdr = scanlist->packet + sizeof(struct iphdr) + sizeof(struct icmphdr);
+			if (iphdr->protocol == IPPROTO_UDP)
+			{
+				udphdr = scanlist->packet + sizeof(struct iphdr) * 2 + sizeof(struct icmphdr);
+				for (int i = 0; i < nb_ports; i++)
 				{
-					if (TCP_FLAG(tcphdr) & RST)
-						portrange[i].flags = SET_FILTER | UNFILTERED;
+					if (portrange[i].port == htons(udphdr->dest))
+					{
+						if (icmphdr->type == 3 && icmphdr->code == 3)
+							portrange[i].flags = SET_ACCESS | CLOSE;
+						else
+							portrange[i].flags = SET_FILTER | FILTERED;
+					}
 				}
 			}
 		}
@@ -27,7 +44,7 @@ static void		compute_capture(struct scan_s *scanlist, t_port_status *portrange, 
 	}
 }
 
-t_port_status	*scan_ack(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config)
+t_port_status	*scan_udp(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *iphdr, bpf_u_int32 net, scanconf_t *config)
 {
 	char				errbuf[PCAP_ERRBUF_SIZE];
 	struct scan_s		*scanlist = NULL;
@@ -46,7 +63,7 @@ t_port_status	*scan_ack(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 	for (uint32_t i = 0; i < config->nb_ports; i++)
 	{
 		ports[i].port = config->portrange[i];
-		ports[i].flags = SET_FILTER | FILTERED;
+		ports[i].flags = SET_ACCESS | OPEN | SET_FILTER | FILTERED;
 	}
 	handle = pcap_open_live("any", 1024, 1, 1000, errbuf);
 	if (!handle)
@@ -56,14 +73,14 @@ t_port_status	*scan_ack(int sockfd, struct sockaddr_in *sockaddr, struct iphdr *
 		return (NULL);
 	}
 	/* Removed portrange from filter since we don't have linear range now */
-	sprintf(filter_exp, "ip host %s and (tcp or icmp)", inet_ntoa(daddr));
+	sprintf(filter_exp, "ip host %s and (udp or icmp)", inet_ntoa(daddr));
 	if (pcap_setup_filter(handle, &fp, net, (char *)filter_exp))
 	{
 		pcap_close(handle);
 		free(ports);
 		return (NULL);
 	}
-	if (thread_send(sockfd, sockaddr, iphdr, ACK, config, ports, send_tcp4_packets, 10))
+	if (thread_send(sockfd, sockaddr, iphdr, 0, config, ports, send_udp4_packets, 10))
 	{
 		pcap_freecode(&fp);
 		pcap_close(handle);

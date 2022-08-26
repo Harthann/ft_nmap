@@ -26,7 +26,7 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 		.id = 0,
 		.frag_off = 0,
 		.ttl = 255,
-		.protocol = IPPROTO_TCP,
+		.protocol = 0,
 		.check = 0, // filled by kernel
 		.saddr = 0,
 	};
@@ -39,6 +39,9 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 ** Initialize socket for tcp packet scan
 */
 	if (init_socket(&socks.sockfd_tcp, IPPROTO_TCP) == EXIT_FAILURE) {
+		return ;
+	}
+	if (init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE) {
 		return ;
 	}
 
@@ -107,6 +110,11 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 //	ports = scan_xmas(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
 //	print_report(ports, config->nb_ports, target, target_ip);
 //	free(ports);
+
+	printf("UDP SCAN\n");
+	ports = scan_udp(socks.sockfd_udp, &sockaddr, &iphdr, net, config);
+	print_report(ports, config->nb_ports, target, target_ip);
+	free(ports);
 
 	free(dev_name);
 	free(target_ip);

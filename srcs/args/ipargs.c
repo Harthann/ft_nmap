@@ -80,8 +80,6 @@ void	ipfromfile(scanconf_t *config, char *file)
 	if (!lines)
 		return ;
 
-	for (int i = 0; lines[i]; i++)
-		printf("%s\n", lines[i]);
 	config->targets = appendlist(config->targets, lines);
 	free(buffer);
 }

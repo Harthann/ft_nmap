@@ -80,7 +80,6 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				exit(0);
 			case '!':
 				parse_longoptions(option_index, av[ft_optind], config);
-				printf("Found long opt %s with arg %s\n", av[ft_optind], ft_optarg);
 				break ;
 			case '?':
 				print_help(options_descriptor);
@@ -99,8 +98,7 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 		config->nb_ports = 1024;
 	}
 	printf("Port range: %d %d\n", config->portrange[0], config->portrange[1]);
+
 	config->targets = appendlist(config->targets, g_arglist);
-	for (int i = 0; config->targets[i]; i++)
-		printf("IP: %s\n", config->targets[i]);
 	return 0;
 }

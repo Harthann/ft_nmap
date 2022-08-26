@@ -44,3 +44,33 @@ int		tcp4_checksum(struct iphdr *iphdr, struct tcphdr *tcphdr, uint8_t *data, in
 	free(buf);
 	return EXIT_SUCCESS;
 }
+
+struct udp4_pseudohdr {
+	uint32_t		src;
+	uint32_t		dst;
+	uint8_t			zero;
+	uint8_t			protocol;
+	uint16_t		udp_len;
+};
+
+int		udp4_checksum(struct iphdr *iphdr, struct udphdr *udphdr, uint8_t *data, int data_len, uint16_t *sum)
+{
+	struct udp4_pseudohdr	udpphdr = {
+		.src = iphdr->saddr,
+		.dst = iphdr->daddr,
+		.zero = 0,
+		.protocol = IPPROTO_UDP,
+		.udp_len = htons(sizeof(struct udphdr) + data_len)
+	};
+	uint8_t					*buf;
+
+	buf = malloc(sizeof(struct udp4_pseudohdr) + sizeof(struct udphdr) + data_len);
+	if (!buf)
+		return -ENOMEM;
+	memcpy(buf, &udpphdr, sizeof(struct udp4_pseudohdr));
+	memcpy(buf + sizeof(struct udp4_pseudohdr), udphdr, sizeof(struct udphdr));
+	memcpy(buf + sizeof(struct udp4_pseudohdr) + sizeof(struct udphdr), data, data_len);
+	*sum = checksum(buf, sizeof(struct udp4_pseudohdr) + sizeof(struct udphdr) + data_len);
+	free(buf);
+	return EXIT_SUCCESS;
+}
