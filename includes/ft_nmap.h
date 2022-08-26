@@ -104,6 +104,14 @@ typedef struct scans_s {
 
 /*=== MACROS ===*/
 
+#define MAX_SCANS 6
+#define N_SYN_SCAN		0
+#define N_NULL_SCAN		1
+#define N_ACK_SCAN		2
+#define N_FIN_SCAN		3
+#define N_XMAS_SCAN		4
+#define N_UDP_SCAN		5
+
 /*
 ** Macro to cast tcphdr and gather or set tcp flag easilu
 */
@@ -183,7 +191,7 @@ void		handling_signals();
 void		setup_pcap_exit(int seconds);
 
 /* print_report.c */
-void	print_report(t_port_status *ports, uint32_t nb_ports, char *target, char *target_ip, char *type);
+void	print_report(t_port_status *ports, uint32_t nb_ports, char *type);
 
 #endif
 
