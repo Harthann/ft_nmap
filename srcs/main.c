@@ -213,8 +213,8 @@ struct timeval		signature(void)
 	gettimeofday(&tv, NULL);
 	t = tv.tv_sec;
 	info = localtime(&t);
-	printf("Starting %s %s at %d-%02d-%02d %02d:%02d CEST\n", PROG_NAME, VERSION,
-info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min);
+	printf("Starting %s %s at %d-%02d-%02d %02d:%02d %s\n", PROG_NAME, VERSION,
+info->tm_year + 1900, info->tm_mon + 1, info->tm_mday, info->tm_hour, info->tm_min, info->tm_zone);
 	return (tv);
 }
 
