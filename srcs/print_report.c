@@ -43,11 +43,12 @@ void	print_report(t_port_status *ports, uint32_t nb_ports, char *type)
 	for (uint32_t i = 0; i < nb_ports; i++)
 	{
 		if (should_print(ports[i].flags, max_flag)) {//(ports[i].flags & SET_ACCESS || ports[i].flags & SET_FILTER) {
-			int		n;
+			int		n = 0;
 			int		m = 0;
 
 			printf("%d/%s%n", ports[i].port, type, &n);
 			printf("%*c", 10 - n, ' ');
+			n = 0;
 			servi = getservbyport(htons(ports[i].port), "tcp");
 
 			if (ports[i].flags & SET_ACCESS) {
@@ -61,6 +62,7 @@ void	print_report(t_port_status *ports, uint32_t nb_ports, char *type)
 				}
 				printf("%s%n", ports[i].flags & FILTERED ? "filtered" : "unfiltered", &m);
 				n += m;
+//				printf("\nn: %d\n", n);
 			}
 
 			printf("%*c", 18 - n, ' ');
