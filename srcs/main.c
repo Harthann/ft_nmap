@@ -13,9 +13,17 @@ t_port_status		*compute_scan_report(t_scans *scans, scanconf_t *config)
 		fprintf(stderr, "%s: malloc: %s\n", prog_name, strerror(errno));
 		return (NULL);;
 	}
+	for (uint32_t i = 0; i < MAX_SCANS - 1; i++)
+	{
+		if (scans[i].ports != NULL)
+		{
+			for (uint32_t j = 0; j < config->nb_ports; j++)
+				final_report[j].port = scans[i].ports[j].port;
+			break ;
+		}
+	}
 	for (uint32_t i = 0; i < config->nb_ports; i++)
 	{
-		final_report[i].port = scans[N_SYN_SCAN].ports[i].port;
 		if (verbose & SCAN_SYN && (scans[N_SYN_SCAN].ports[i].flags & OPEN || scans[N_SYN_SCAN].ports[i].flags & CLOSE)) // SYN SCAN OPEN OR CLOSE
 			final_report[i].flags = scans[N_SYN_SCAN].ports[i].flags;
 		else
