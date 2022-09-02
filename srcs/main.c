@@ -131,23 +131,25 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 	};
 
 	for (int i = 0; i < MAX_SCANS - 1; i++) {
-		if (!(verbose & VERBOSITY))
-			write(STDOUT_FILENO, ".", 1);
 		if (verbose & (2 << i))
-			scans[i].ports = scans[i].scan_function(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
-		if (verbose & VERBOSITY)
 		{
-			if (i == N_SYN_SCAN)
-				printf("-- VERBOSE --> SYN SCAN\n");
-			else if (i == N_NULL_SCAN)
-				printf("-- VERBOSE --> NULL SCAN\n");
-			else if (i == N_ACK_SCAN)
-				printf("-- VERBOSE --> ACK SCAN\n");
-			else if (i == N_FIN_SCAN)
-				printf("-- VERBOSE --> FIN SCAN\n");
-			else if (i == N_XMAS_SCAN)
-				printf("-- VERBOSE --> XMAS SCAN\n");
-			print_report(scans[i].ports, config->nb_ports, "tcp");
+			if (!(verbose & VERBOSITY))
+				write(STDOUT_FILENO, ".", 1);
+			scans[i].ports = scans[i].scan_function(socks.sockfd_tcp, &sockaddr, &iphdr, net, config);
+			if (verbose & VERBOSITY)
+			{
+				if (i == N_SYN_SCAN)
+					printf("-- VERBOSE --> SYN SCAN\n");
+				else if (i == N_NULL_SCAN)
+					printf("-- VERBOSE --> NULL SCAN\n");
+				else if (i == N_ACK_SCAN)
+					printf("-- VERBOSE --> ACK SCAN\n");
+				else if (i == N_FIN_SCAN)
+					printf("-- VERBOSE --> FIN SCAN\n");
+				else if (i == N_XMAS_SCAN)
+					printf("-- VERBOSE --> XMAS SCAN\n");
+				print_report(scans[i].ports, config->nb_ports, "tcp");
+			}
 		}
 	}
 
@@ -166,23 +168,28 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 		write(STDOUT_FILENO, "\n", 1);
 	t_port_status *final_report;
 
-	final_report = compute_scan_report(scans, config);
-	if (!final_report)
+	if (verbose & 0x3f)
 	{
-		for (int i = 0; i < MAX_SCANS; i++)
-			free(scans[i].ports);
-		free(dev_name);
-		free(target_ip);
-		return ;
+		final_report = compute_scan_report(scans, config);
+		if (!final_report)
+		{
+			for (int i = 0; i < MAX_SCANS; i++)
+				free(scans[i].ports);
+			free(dev_name);
+			free(target_ip);
+			return ;
+		}
 	}
 
 	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
 	if (verbose & 0x3f)
+	{
 		print_report(final_report, config->nb_ports, "tcp");
+		free(final_report);
+	}
 	if (verbose & SCAN_UDP)
 		print_report(scans[N_UDP_SCAN].ports, config->nb_ports, "udp");
 
-	free(final_report);
 	for (int i = 0; i < MAX_SCANS; i++)
 		free(scans[i].ports);
 	free(dev_name);
