@@ -115,8 +115,8 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 			config->portrange[i] = i + 1;
 		config->nb_ports = 1024;
 	}
-	printf("Ports: %d\n", config->nb_ports);
-	printf("Threads: %d\n", config->nb_threads);
+	printf("Port(s): %d\n", config->nb_ports);
+	printf("Thread(s): %d\n", config->nb_threads);
 	if (verbose == 0 || verbose == 1)
 		verbose |= SCAN_SYN | SCAN_NULL | SCAN_FIN | SCAN_XMAS | SCAN_ACK | SCAN_UDP;
 	printf("Scan(s) Type(s):");
