@@ -122,14 +122,24 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 			config->portrange[i] = i + 1;
 		config->nb_ports = 1024;
 	}
-	printf("Port range: %d %d\n", config->portrange[0], config->portrange[1]);
-	if (config->nb_threads > config->nb_ports)
-		config->nb_threads = config->nb_ports;
-
-	printf("Threads nummber: %d\n", config->nb_threads);
+	printf("Port(s): %d\n", config->nb_ports);
+	printf("Thread(s): %d\n", config->nb_threads);
 	if (verbose == 0 || verbose == 1)
 		verbose |= SCAN_SYN | SCAN_NULL | SCAN_FIN | SCAN_XMAS | SCAN_ACK | SCAN_UDP;
-	printf("Asked scan: %d\n", verbose);
+	printf("Scan(s) Type(s):");
+	if (verbose & SCAN_SYN)
+		printf(" SYN");
+	if (verbose & SCAN_NULL)
+		printf(" NULL");
+	if (verbose & SCAN_FIN)
+		printf(" FIN");
+	if (verbose & SCAN_XMAS)
+		printf(" XMAS");
+	if (verbose & SCAN_ACK)
+		printf(" ACK");
+	if (verbose & SCAN_UDP)
+		printf(" UDP");
+	printf("\n");
 	config->targets = appendlist(config->targets, g_arglist);
 	return 0;
 }
