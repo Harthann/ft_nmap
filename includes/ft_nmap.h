@@ -40,9 +40,10 @@
 # define PROG_NAME		"ft_nmap"
 # define VERSION		"alpha 0.1"
 
-# define MAX_TTL	255
-# define DATA_LEN	0
+# define MAX_TTL		255
+# define DATA_LEN		0
 # define MAX_ADDR_SIZE	64
+# define MAX_THREAD		250
 
 # define		SET_ACCESS		0x01
 # define		OPEN			0x02

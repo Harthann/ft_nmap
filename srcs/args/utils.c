@@ -64,27 +64,27 @@ int	addscan(char *str)
 		length += 1;
 
 	printf("Found arg: {%s} %d\n", str, length);
-	if ((length == 1 && str[0] == 'S') || !strcmp(str, "syn")) {
+	if ((length == 1 && str[0] == 'S') || !strcmp(str, "SYN")) {
 		verbose |= SCAN_SYN;
 		return 1;
 	}
-	else if ((length == 1 && str[0] == 'A') || !strcmp(str, "ack")) {
+	else if ((length == 1 && str[0] == 'A') || !strcmp(str, "ACK")) {
 		verbose |= SCAN_SYN;
 		return 1;
 	}
-	else if ((length == 1 && str[0] == 'N') || !strcmp(str, "null")) {
+	else if ((length == 1 && str[0] == 'N') || !strcmp(str, "NULL")) {
 		verbose |= SCAN_NULL;
 		return 1;
 	}
-	else if ((length == 1 && str[0] == 'F') || !strcmp(str, "fin")) {
+	else if ((length == 1 && str[0] == 'F') || !strcmp(str, "FIN")) {
 		verbose |= SCAN_FIN;
 		return 1;
 	}
-	else if ((length == 1 && str[0] == 'X') || !strcmp(str, "xmas")) {
+	else if ((length == 1 && str[0] == 'X') || !strcmp(str, "XMAS")) {
 		verbose |= SCAN_XMAS;
 		return 1;
 	}
-	else if ((length == 1 && str[0] == 'U') || !strcmp(str, "udp")) {
+	else if ((length == 1 && str[0] == 'U') || !strcmp(str, "UDP")) {
 		verbose |= SCAN_UDP;
 		return 1;
 	}
