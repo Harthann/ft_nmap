@@ -39,13 +39,11 @@ void	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 			config->targets = addip(config->targets, ft_optarg);
 			return ;
 
-		case 2:
-			ipfromfile(config, ft_optarg);
-			return ;
+		case 2: ipfromfile(config, ft_optarg); return ;
 
 		case 3:
-			create_range(ft_optarg, config);
-				
+			if (create_range(ft_optarg, config) == EXIT_FAILURE)
+				break ;
 			return ;
 
 		case 4:
@@ -61,6 +59,7 @@ void	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 	}
 
 	print_help(options_descriptor);
+	free(config->portrange);
 	getopt_release();
 	exit(0);
 }
@@ -113,6 +112,7 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 	}
 	if (g_arglist == NULL && config->targets == NULL) {
 		printf("Error: Missing argument\n");
+		free(config->portrange);
 		print_help(options_descriptor);
 		return EXIT_FAILURE;
 	}

@@ -27,5 +27,6 @@ void	ipfromfile(scanconf_t *config, char *file);
 char	**split(char *str);
 int		is_numeric(char *str);
 int		addscan(char *str);
+int		create_range(char *list, scanconf_t *config);
 
 #endif
