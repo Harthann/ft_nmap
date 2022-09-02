@@ -69,7 +69,7 @@ int	addscan(char *str)
 		return 1;
 	}
 	else if ((length == 1 && str[0] == 'A') || !strcmp(str, "ACK")) {
-		verbose |= SCAN_SYN;
+		verbose |= SCAN_ACK;
 		return 1;
 	}
 	else if ((length == 1 && str[0] == 'N') || !strcmp(str, "NULL")) {
