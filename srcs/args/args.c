@@ -44,7 +44,8 @@ void	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 			return ;
 
 		case 3:
-			printf("Found ports range\n");
+			create_range(ft_optarg, config);
+				
 			return ;
 
 		case 4:
@@ -52,15 +53,7 @@ void	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 			return ;
 
 		case 5:
-			if (!is_numeric(ft_optarg) || ft_optarg[0] == '-') {
-				printf("Threads number should be a positive integer between 0 and 255\n");
-				break;
-			}
-			config->nb_threads = atoi(ft_optarg);
-			if (config->nb_threads > MAX_THREAD) {
-				printf("Threads number should be a positive integer between 0 and %d\n", MAX_THREAD);
-				break;
-			}
+			// This option is handle using it's shorthadn opion
 			return ;
 
 		default:
@@ -88,6 +81,7 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				freeiplist(config->targets);
 				free(prog_name);
 				exit(0);
+
 			case 's':
 				if (!addscan(ft_optarg)) {
 					printf("Scan {%s} not known\n", ft_optarg);
@@ -95,6 +89,19 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 					return EXIT_FAILURE;
 				}
 				break ;
+
+			case 't':
+				if (!is_numeric(ft_optarg) || ft_optarg[0] == '-') {
+					printf("Threads number should be a positive integer between 0 and 255\n");
+					break;
+				}
+				config->nb_threads = atoi(ft_optarg);
+				if (config->nb_threads > MAX_THREAD) {
+					printf("Threads number should be a positive integer between 0 and %d\n", MAX_THREAD);
+					return EXIT_FAILURE;
+				}
+				break ;
+				
 			case '!':
 				parse_longoptions(option_index, av[ft_optind], config);
 				printf("Found long opt\n");
