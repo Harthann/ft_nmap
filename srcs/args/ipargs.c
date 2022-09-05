@@ -45,7 +45,7 @@ char	**appendlist(char **list1, char **list2) {
 	return dst;
 }
 
-void	ipfromfile(scanconf_t *config, char *file)
+int		ipfromfile(scanconf_t *config, char *file)
 {
 	FILE		*fd;
 	struct stat stat_file;
@@ -58,31 +58,36 @@ void	ipfromfile(scanconf_t *config, char *file)
 */
 	if (stat(file, &stat_file) != 0) {
 		fprintf(stderr, "%s: Stat file: %s\n", prog_name, strerror(errno));
-		return ;
+		return EXIT_FAILURE;
 	}
 	if (S_ISDIR(stat_file.st_mode)) {
-		fprintf(stdout, "%s is a directory\n", file);
-		return ;
+		fprintf(stderr, "%s: '%s' is a directory\n", prog_name, file);
+		return EXIT_FAILURE;
 	}
 	fd = fopen(file, "r");
-
 /*
 ** Map the file in memory using mmap then splitting it in lines
 */
 	buffer = calloc(stat_file.st_size + 1, sizeof(char));
 	if (!buffer) {
 		fprintf(stderr, "%s: Stat file: %s\n", prog_name, strerror(errno));
-		return ;
+		fclose(fd);
+		return EXIT_FAILURE;
 	}
 	fread(buffer, stat_file.st_size, 1, fd);
 
 	lines = split(buffer);
 	if (!lines)
-		return ;
+	{
+		fclose(fd);
+		free(buffer);
+		return EXIT_FAILURE;
+	}
 
 	config->targets = appendlist(config->targets, lines);
 	fclose(fd);
 	free(buffer);
+	return EXIT_SUCCESS;
 }
 
 void	freeiplist(char **list) {

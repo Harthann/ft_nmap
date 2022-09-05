@@ -40,8 +40,7 @@ int	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 			return EXIT_SUCCESS;
 
 		case 2: 
-			ipfromfile(config, ft_optarg);
-			return EXIT_SUCCESS;
+			return ipfromfile(config, ft_optarg);
 
 		case 3: // Ports option
 			// This option is handle using it's shorthand option
@@ -114,7 +113,7 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 	}
 	config->targets = appendlist(config->targets, g_arglist);
 	if (g_arglist == NULL && *config->targets == NULL) {
-		printf("Error: Missing argument\n");
+		fprintf(stderr, "%s: Error: Missing target\n", prog_name);
 		print_help(options_descriptor);
 		return EXIT_FAILURE;
 	}
