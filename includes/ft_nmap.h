@@ -44,7 +44,7 @@
 # define DATA_LEN		0
 # define MAX_ADDR_SIZE	64
 # define MAX_THREAD		250
-# define MAX_PORT		65536
+# define MAX_PORT		65535
 # define MAX_RANGE		1024
 
 # define		SET_ACCESS		0x01

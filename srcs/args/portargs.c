@@ -47,8 +47,8 @@ static int	addrange(char *list, uint32_t **portrange, uint32_t *length)
 		list += 1;
 	end = atoi(list + 1);
 
-	if (end < start) {
-		fprintf(stderr,"Error! Invalid backward range {%d} {%d}\n", start, end);
+	if (start < 0 || end < 0 || end < start) {
+		fprintf(stderr,"Error! Invalid range {%d} {%d}\n", start, end);
 		return EXIT_FAILURE;
 	}
 

@@ -90,3 +90,20 @@ int	addscan(char *str)
 
 	return 0;
 }
+
+void	sort_array(uint32_t *array, uint32_t length)
+{
+	uint32_t tmp;
+
+	while (length) {
+		for (uint32_t i = 0; array && i < length; i++){
+			if (array[i] > array[i + 1]) {
+				tmp = array[i + 1];
+				array[i + 1] = array[i];
+				array[i] = tmp;
+			}
+		}
+
+		length -= 1;
+	}
+}

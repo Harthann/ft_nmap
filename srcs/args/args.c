@@ -146,6 +146,7 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 		printf(" UDP");
 	printf("\n");
 	config->targets = appendlist(config->targets, g_arglist);
+	sort_array(config->portrange, config->nb_ports);
 
 	return 0;
 }

@@ -29,5 +29,6 @@ char	**split(char *str);
 int		is_numeric(char *str);
 int		addscan(char *str);
 int		create_range(char *list, scanconf_t *config);
+void		sort_array(uint32_t *array, uint32_t length);
 
 #endif
