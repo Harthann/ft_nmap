@@ -16,6 +16,7 @@ extern char	verbose;
 #define SCAN_FIN	0x10
 #define SCAN_XMAS	0x20
 #define SCAN_UDP	0x40
+#define SETUP_PORT	0x80
 
 #define TODO(string) printf("Not yet implemented: %s\n", string)
 

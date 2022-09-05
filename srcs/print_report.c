@@ -3,7 +3,7 @@
 
 int		should_print(uint8_t flags, int max_flag)
 {
-	if (flags != max_flag)
+	if ((flags != max_flag) || (verbose & SETUP_PORT))
 		return 1;
 	return 0;
 }
@@ -28,17 +28,19 @@ void	print_report(t_port_status *ports, uint32_t nb_ports, char *type)
 		}
 	}
 
-	printf("Not shown: %d %s ", max_value, type);
-	if (max_flag & SET_ACCESS) {
-		printf("%s", max_flag & OPEN ? "opened" : "closed");
+	if (!(verbose & SETUP_PORT))
+	{
+		printf("Not shown: %d %s ", max_value, type);
+		if (max_flag & SET_ACCESS) {
+			printf("%s", max_flag & OPEN ? "opened" : "closed");
+		}
+		if (max_flag & SET_FILTER) {
+			if (max_flag & SET_ACCESS)
+				printf("|");
+			printf("%s", max_flag & FILTERED ? "filtered" : "unfiltered");
+		}
+		printf(" ports.\n");
 	}
-
-	if (max_flag & SET_FILTER) {
-		if (max_flag & SET_ACCESS)
-			printf("|");
-		printf("%s", max_flag & FILTERED ? "filtered" : "unfiltered");
-	}
-	printf(" ports.\n");
 	printf("PORT      STATUS            SERVICE\n");
 	for (uint32_t i = 0; i < nb_ports; i++)
 	{

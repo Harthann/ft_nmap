@@ -42,6 +42,7 @@ void	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 		case 2: ipfromfile(config, ft_optarg); return ;
 
 		case 3:
+			verbose |= SETUP_PORT;
 			if (create_range(ft_optarg, config) == EXIT_FAILURE)
 				break ;
 			return ;
@@ -124,7 +125,7 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 	}
 	printf("Port(s): %d\n", config->nb_ports);
 	printf("Thread(s): %d\n", config->nb_threads);
-	if (verbose == 0 || verbose == 1)
+	if (!(verbose & 0x7e))
 		verbose |= SCAN_SYN | SCAN_NULL | SCAN_FIN | SCAN_XMAS | SCAN_ACK | SCAN_UDP;
 	printf("Scan(s) Type(s):");
 	if (verbose & SCAN_SYN)
