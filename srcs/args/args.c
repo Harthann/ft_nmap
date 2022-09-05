@@ -112,7 +112,8 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				return EXIT_FAILURE;
 		}
 	}
-	if (g_arglist == NULL && config->targets == NULL) {
+	config->targets = appendlist(config->targets, g_arglist);
+	if (g_arglist == NULL && *config->targets == NULL) {
 		printf("Error: Missing argument\n");
 		print_help(options_descriptor);
 		return EXIT_FAILURE;
@@ -141,7 +142,6 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 	if (verbose & SCAN_UDP)
 		printf(" UDP");
 	printf("\n");
-	config->targets = appendlist(config->targets, g_arglist);
 	sort_array(config->portrange, config->nb_ports);
 
 	return 0;
