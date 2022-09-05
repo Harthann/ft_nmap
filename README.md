@@ -4,7 +4,7 @@ Reproduction of nmap command
 ![example](img/example.png)
 
 ## Compilation
-You must have installed `libpcap-dev` or `libpcap-devel` package.
+You must install `libpcap-dev` or `libpcap-devel` package.
 ```
 make
 ```
