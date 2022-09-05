@@ -1,6 +1,14 @@
 # ft_nmap
 Reproduction of nmap command
 
+![example](img/example.png)
+
+## Compilation
+You must install `libpcap-dev` or `libpcap-devel` package.
+```
+make
+```
+
 ## Usage
 
 ```
@@ -26,10 +34,4 @@ Options:
 	                    	Ex: --speedup 125
 
 -v	--verbose           	Add verbosity to the output, forcing nmap to print every port result
-```
-
-## Compilation
-You must have installed `libpcap-dev` or `libpcap-devel` packet.
-```
-make
 ```
