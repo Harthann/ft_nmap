@@ -92,11 +92,11 @@ $(OBJ_PATH)/%.o: %.s
 #========================#
 
 clean :
-	@echo $(ECHO_FLAGS) "${rouge}Removing objects files"
+	@printf $(ECHO_FLAGS) "${rouge}Removing objects files\n"
 	@rm -rf ${OBJ_PATH}
 
 fclean : clean
-	@echo $(ECHO_FLAGS) "${rose}Removing ${NAME}"
+	@printf $(ECHO_FLAGS) "${rose}Removing ${NAME}\n"
 	@rm -f $(NAME) ${LIBS}
 
 re : fclean all
