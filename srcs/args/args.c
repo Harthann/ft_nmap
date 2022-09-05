@@ -28,7 +28,7 @@ struct s_optdesc options_descriptor[] = {
 	{0, 0, 0, 0, 0}
 };
 
-void	parse_longoptions(int option_index, char *option, scanconf_t *config) {
+int	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 
 	switch (option_index)
 	{
@@ -37,32 +37,32 @@ void	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 
 		case 1:
 			config->targets = addip(config->targets, ft_optarg);
-			return ;
+			return EXIT_SUCCESS;
 
-		case 2: ipfromfile(config, ft_optarg); return ;
+		case 2: 
+			ipfromfile(config, ft_optarg);
+			return EXIT_SUCCESS;
 
 		case 3:
 			verbose |= SETUP_PORT;
 			if (create_range(ft_optarg, config) == EXIT_FAILURE)
 				break ;
-			return ;
+			return EXIT_SUCCESS;
 
 		case 4:
 			// This option is handle using it's shorthand option
-			return ;
+			return EXIT_SUCCESS;
 
 		case 5:
 			// This option is handle using it's shorthadn opion
-			return ;
+			return EXIT_SUCCESS;
 
 		default:
 			printf("Option: %s not found\n", option);
 	}
 
 	print_help(options_descriptor);
-	free(config->portrange);
-	getopt_release();
-	exit(0);
+	return EXIT_FAILURE;
 }
 
 
@@ -103,7 +103,8 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				break ;
 				
 			case '!':
-				parse_longoptions(option_index, av[ft_optind], config);
+				if (parse_longoptions(option_index, av[ft_optind], config) == EXIT_FAILURE)
+					return EXIT_FAILURE;
 				printf("Found long opt\n");
 				break ;
 			case '?':
