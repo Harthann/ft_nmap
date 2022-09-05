@@ -244,6 +244,7 @@ int			main(int ac, char **av)
 	*/
 	if (parse_arg(ac - 1, av + 1, &config) != 0)
 	{
+		free(config.portrange);
 		free(prog_name);
 		freeiplist(config.targets);
 		return EXIT_FAILURE;
