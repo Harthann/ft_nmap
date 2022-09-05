@@ -24,7 +24,7 @@ t_port_status		*compute_scan_report(t_scans *scans, scanconf_t *config)
 	}
 	for (uint32_t i = 0; i < config->nb_ports; i++)
 	{
-		if (verbose & SCAN_SYN && (scans[N_SYN_SCAN].ports[i].flags & OPEN || scans[N_SYN_SCAN].ports[i].flags & CLOSE)) // SYN SCAN OPEN OR CLOSE
+		if ((verbose & SCAN_SYN) && (scans[N_SYN_SCAN].ports[i].flags & SET_ACCESS)) // SYN SCAN OPEN OR CLOSE
 			final_report[i].flags = scans[N_SYN_SCAN].ports[i].flags;
 		else
 		{
