@@ -144,8 +144,9 @@ char	ft_getopt_long
 ** If it does require an argument continue to the next block
 */
 	for (int i = 0; longopt && (longopt[i].option || longopt[i].shortcut); i++)
-		if (longopt[i].shortcut == ft_optopt)
+		if (longopt[i].shortcut == ft_optopt) {
 			index = i;
+		}
 
 /*
 ** If index still equal to -1 this means we didn't found the option
@@ -162,7 +163,7 @@ char	ft_getopt_long
 	if (longopt[index].arg == false)
 	{
 		if (longopt[index].flag != NULL)
-			*longopt[index].flag = 1;
+			*longopt[index].flag |= 1;
 		next_opt(av, &nexti, &nextj);
 		return ft_optopt;
 	}
