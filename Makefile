@@ -59,12 +59,6 @@ DEBUG = -g3
 SAN = -g3 -fsanitize=address
 OPT_FLAGS = -flto
 
-ifeq ($(strip $(shell uname)),Darwin)
-ECHO_FLAGS=-e
-else
-ECHO_FLAGS=
-endif
-
 #===========================#
 #		BULD RULES			#
 #===========================#
@@ -72,9 +66,9 @@ endif
 all : $(NAME)
 
 $(NAME) : ${OBJ} 
-	@echo $(ECHO_FLAGS) "${vertclair}Creating ${NAME}"
+	@printf $(ECHO_FLAGS) "${vertclair}Creating ${NAME}\n"
 	@gcc ${FLAGS} ${OPT_FLAGS} -I includes/ ${OBJ} -o ${NAME} -lpcap -lpthread
-	@echo $(ECHO_FLAGS) "${vertclair}[$(NAME) is ready]"
+	@printf $(ECHO_FLAGS) "${vertclair}[$(NAME) is ready]\n"
 
 debug: extend_flags re
 
@@ -83,14 +77,14 @@ extend_flags:
 
 ${OBJ_PATH}/%.o: %.c Makefile
 	@mkdir -p ${OBJ_PATH}
-	@echo $(ECHO_FLAGS) "${cyanfonce}Compiling ${notdir $(basename $@)}"
+	@printf $(ECHO_FLAGS) "${cyanfonce}Compiling ${notdir $(basename $@)}\n"
 	@gcc $(FLAGS) -c -o $@ -I includes/ $<
 -include $(OBJ:.o=.d)
 
 
 #	In case of asm sources
 $(OBJ_PATH)/%.o: %.s
-	@echo $(ECHO_FLAGS) "${cyanfonce}Compiling ${notdir $(basename $@)}"
+	@printf $(ECHO_FLAGS) "${cyanfonce}Compiling ${notdir $(basename $@)}\n"
 	@nasm -f elf64 $< -o $@ 
 
 #========================#
