@@ -52,7 +52,7 @@ static int	addrange(char *list, uint32_t **portrange, uint32_t *length)
 		return EXIT_FAILURE;
 	}
 
-	for (int i = start; i < end; i++)
+	for (int i = start; i <= end; i++)
 		if (!isdup(i, *portrange, *length))
 			inc += 1;
 
@@ -113,9 +113,6 @@ static int addport(char *list, uint32_t **portrange, uint32_t *length)
 
 int	create_range(char *list, scanconf_t *config)
 {
-	uint32_t	*portrange = NULL;
-	uint32_t	length = 0;
-
 	int		nextsep = 0;
 
 	while (list && *list) {
@@ -124,22 +121,21 @@ int	create_range(char *list, scanconf_t *config)
 
 		nextsep = find_nextsep(list);
 		if (isrange(list, nextsep)) {
-			if (addrange(list, &portrange, &length) == EXIT_FAILURE)
-				goto reterror;
+			if (addrange(list, &config->portrange, &config->nb_ports) == EXIT_FAILURE)
+				return EXIT_FAILURE;
 		} else {
-			if (addport(list, &portrange, &length) == EXIT_FAILURE) 
-				goto reterror;
+			if (addport(list, &config->portrange, &config->nb_ports) == EXIT_FAILURE) 
+				return EXIT_FAILURE;
 		}
 
 		list += nextsep;
 	}
 
-	config->portrange = portrange;
-	config->nb_ports = length;
-	return EXIT_SUCCESS;
+	if (config->nb_ports > MAX_RANGE) {
+		fprintf(stderr, "Error! Can't scan more than {%d} ports\n", MAX_RANGE);
+		return EXIT_FAILURE;
+	}
 
-reterror:
-	free(portrange);
-	return EXIT_FAILURE;
+	return EXIT_SUCCESS;
 }
 
