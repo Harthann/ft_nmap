@@ -118,7 +118,6 @@ int	create_range(char *list, scanconf_t *config)
 
 	int		nextsep = 0;
 
-	(void)config;
 	while (list && *list) {
 		if (*list == ',')
 			list += 1;
@@ -131,7 +130,6 @@ int	create_range(char *list, scanconf_t *config)
 			if (addport(list, &portrange, &length) == EXIT_FAILURE) 
 				goto reterror;
 		}
-		printf("{%s} {%d}\n", list, nextsep);
 
 		list += nextsep;
 	}

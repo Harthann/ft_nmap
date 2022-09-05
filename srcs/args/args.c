@@ -146,7 +146,5 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 	printf("\n");
 	config->targets = appendlist(config->targets, g_arglist);
 
-	for(uint32_t i = config->nb_ports; i < 
-
 	return 0;
 }
