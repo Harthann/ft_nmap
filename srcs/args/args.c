@@ -104,7 +104,6 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 			case '!':
 				if (parse_longoptions(option_index, av[ft_optind], config) == EXIT_FAILURE)
 					return EXIT_FAILURE;
-				printf("Found long opt\n");
 				break ;
 			case '?':
 				print_help(options_descriptor);
@@ -142,5 +141,9 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 		printf(" UDP");
 	printf("\n");
 	config->targets = appendlist(config->targets, g_arglist);
+
+	for(uint32_t i = 0; i < config->nb_ports; i++)
+		printf("%d ", config->portrange[i]);
+	printf("\n");
 	return 0;
 }

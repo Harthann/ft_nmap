@@ -63,7 +63,6 @@ int	addscan(char *str)
 	while (str[length])
 		length += 1;
 
-	printf("Found arg: {%s} %d\n", str, length);
 	if ((length == 1 && str[0] == 'S') || !strcmp(str, "SYN")) {
 		verbose |= SCAN_SYN;
 		return 1;
