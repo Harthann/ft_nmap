@@ -41,6 +41,8 @@ int	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 				return EXIT_FAILURE;
 			}
 			config->targets = addip(config->targets, ft_optarg);
+			if (!config->targets)
+				return EXIT_FAILURE;
 			return EXIT_SUCCESS;
 
 		case 2: 
@@ -48,8 +50,7 @@ int	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 				fprintf(stderr, "%s: Missing argument for option %s\n", prog_name, option);
 				return EXIT_FAILURE;
 			}
-			ipfromfile(config, ft_optarg);
-			return EXIT_SUCCESS;
+			return ipfromfile(config, ft_optarg);
 
 		case 3: // Ports option
 			// This option is handle using it's shorthand option
@@ -102,15 +103,12 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 
 			case 't':
 				if (ft_optarg == NULL) {
-					fprintf(stderr, "%s: Missing argument for option -%c\n", prog_name, c);
+					fprintf(stderr, "%s: Missing argument for option %c %s\n", prog_name, options_descriptor[option_index].shortcut, options_descriptor[option_index].option);
 					return EXIT_FAILURE;
 				}	
-				if (!is_numeric(ft_optarg) || ft_optarg[0] == '-') {
-					printf("Threads number should be a positive integer between 0 and 255\n");
-					break;
-				}
+
 				config->nb_threads = atoi(ft_optarg);
-				if (config->nb_threads > MAX_THREAD) {
+				if (!is_numeric(ft_optarg) || config->nb_threads > MAX_THREAD) {
 					printf("Threads number should be a positive integer between 0 and %d\n", MAX_THREAD);
 					return EXIT_FAILURE;
 				}
@@ -137,8 +135,9 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				return EXIT_FAILURE;
 		}
 	}
-	if (g_arglist == NULL && config->targets == NULL) {
-		printf("Error: Missing argument\n");
+	config->targets = appendlist(config->targets, g_arglist);
+	if (g_arglist == NULL && *config->targets == NULL) {
+		fprintf(stderr, "%s: Error: Missing target\n", prog_name);
 		print_help(options_descriptor);
 		return EXIT_FAILURE;
 	}
@@ -166,7 +165,6 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 	if (verbose & SCAN_UDP)
 		printf(" UDP");
 	printf("\n");
-	config->targets = appendlist(config->targets, g_arglist);
 	sort_array(config->portrange, config->nb_ports);
 
 	return 0;

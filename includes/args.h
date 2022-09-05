@@ -24,7 +24,7 @@ int		parse_arg(int ac, char **av, scanconf_t *config);
 char	**appendlist(char **list1, char **list2);
 char	**addip(char **list, char *ip);
 void	freeiplist(char **list);
-void	ipfromfile(scanconf_t *config, char *file);
+int		ipfromfile(scanconf_t *config, char *file);
 char	**split(char *str);
 int		is_numeric(char *str);
 int		addscan(char *str);
