@@ -6,6 +6,7 @@ char	**addip(char **list, char *ip) {
 
 	tmp = calloc(sizeof(char*), length + 1);
 	if (!tmp) {
+		fprintf(stderr, "%s: malloc(): %s\n", prog_name, strerror(errno));
 		freeiplist(list);
 		return NULL;
 	}
@@ -35,6 +36,13 @@ char	**appendlist(char **list1, char **list2) {
 		j += 1;
 	
 	dst = calloc((i + j + 1), sizeof(char*));
+	if (!dst)
+	{
+		fprintf(stderr, "%s: malloc(): %s\n", prog_name, strerror(errno));
+		free(list1);
+		free(list2);
+		return NULL;
+	}
 	if (dst && list1)
 		memcpy(dst, list1, sizeof(char*) * i);
 	if (dst && list2)
@@ -57,20 +65,30 @@ int		ipfromfile(scanconf_t *config, char *file)
 ** Then get it's size to map it in memory using mmap
 */
 	if (stat(file, &stat_file) != 0) {
-		fprintf(stderr, "%s: Stat file: %s\n", prog_name, strerror(errno));
+		fprintf(stderr, "%s: stat(): %s\n", prog_name, strerror(errno));
 		return EXIT_FAILURE;
 	}
 	if (S_ISDIR(stat_file.st_mode)) {
 		fprintf(stderr, "%s: '%s' is a directory\n", prog_name, file);
 		return EXIT_FAILURE;
 	}
+	if (access(file, R_OK) < 0) {
+		fprintf(stderr, "%s: access(): %s\n", prog_name, strerror(errno));
+		return EXIT_FAILURE;
+	}
+	printf("ACCESS OK\n");
 	fd = fopen(file, "r");
+	if (!fd)
+	{
+		fprintf(stderr, "%s: fopen(): %s\n", prog_name, strerror(errno));
+		return EXIT_FAILURE;
+	}
 /*
 ** Map the file in memory using mmap then splitting it in lines
 */
 	buffer = calloc(stat_file.st_size + 1, sizeof(char));
 	if (!buffer) {
-		fprintf(stderr, "%s: Stat file: %s\n", prog_name, strerror(errno));
+		fprintf(stderr, "%s: malloc(): %s\n", prog_name, strerror(errno));
 		fclose(fd);
 		return EXIT_FAILURE;
 	}

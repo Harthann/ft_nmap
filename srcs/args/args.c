@@ -37,6 +37,8 @@ int	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 
 		case 1:
 			config->targets = addip(config->targets, ft_optarg);
+			if (!config->targets)
+				return EXIT_FAILURE;
 			return EXIT_SUCCESS;
 
 		case 2: 
