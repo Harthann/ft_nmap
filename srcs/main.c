@@ -62,6 +62,8 @@ void		nmap(char *target, scanconf_t *config)//, uint32_t *portrange, uint32_t nb
 	char			*dev_name;
 	char			*target_ip;
 
+	socks.sockfd_tcp = -1;
+	socks.sockfd_udp = -1;
 /*
 ** General purpose structure ip and sockaddr
 */
@@ -99,6 +101,10 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 	target_ip = resolve_hostname(target);
 	if (!target_ip) {
 		fprintf(stderr, "%s: Failed to resolve \"%s\".\n", prog_name, target);
+		if (socks.sockfd_tcp != -1)
+			close(socks.sockfd_tcp);
+		if (socks.sockfd_udp != -1)
+			close(socks.sockfd_udp);
 		return ;
 	}
 	inet_pton(AF_INET, target_ip, &iphdr.daddr);
@@ -116,11 +122,19 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 	dev_name = get_device();
 	if (!dev_name) {
 		free(target_ip);
+		if (socks.sockfd_tcp != -1)
+			close(socks.sockfd_tcp);
+		if (socks.sockfd_udp != -1)
+			close(socks.sockfd_udp);
 		return ;
 	}
 	if (get_ipv4_addr((int *)&iphdr.saddr, dev_name) == EXIT_FAILURE) {
 		free(target_ip);
 		free(dev_name);
+		if (socks.sockfd_tcp != -1)
+			close(socks.sockfd_tcp);
+		if (socks.sockfd_udp != -1)
+			close(socks.sockfd_udp);
 		return ;
 	}
 	if (pcap_lookupnet(dev_name, &net, &mask, errbuf) == PCAP_ERROR) {
@@ -185,6 +199,10 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 				free(scans[i].ports);
 			free(dev_name);
 			free(target_ip);
+			if (socks.sockfd_tcp != -1)
+				close(socks.sockfd_tcp);
+			if (socks.sockfd_udp != -1)
+				close(socks.sockfd_udp);
 			return ;
 		}
 	}
@@ -202,6 +220,10 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 		free(scans[i].ports);
 	free(dev_name);
 	free(target_ip);
+	if (socks.sockfd_tcp != -1)
+		close(socks.sockfd_tcp);
+	if (socks.sockfd_udp != -1)
+		close(socks.sockfd_udp);
 }
 
 struct timeval		signature(void)
