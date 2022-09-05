@@ -264,11 +264,12 @@ int			main(int ac, char **av)
 	/*
 	** Parse argument send to the program using ft_getopt
 	*/
-	if (parse_arg(ac - 1, av + 1, &config) != 0)
+	if (parse_arg(ac - 1, av + 1, &config) == EXIT_FAILURE)
 	{
 		free(config.portrange);
 		free(prog_name);
 		freeiplist(config.targets);
+		getopt_release();
 		return EXIT_FAILURE;
 	}
 

@@ -24,6 +24,10 @@ char	*ft_optarg = 0;
 //void getopt_release () __attribute__((destructor));
 
 void getopt_release(void) {
+	int i = 0;
+
+	while (g_arglist && g_arglist[i])
+		free(g_arglist[i++]);
 	free(g_arglist);
 	g_arglist = NULL;
 }
