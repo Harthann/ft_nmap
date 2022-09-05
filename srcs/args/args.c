@@ -89,12 +89,8 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				break ;
 
 			case 't':
-				if (!is_numeric(ft_optarg) || ft_optarg[0] == '-') {
-					printf("Threads number should be a positive integer between 0 and 255\n");
-					break;
-				}
 				config->nb_threads = atoi(ft_optarg);
-				if (config->nb_threads > MAX_THREAD) {
+				if (!is_numeric(ft_optarg) || config->nb_threads > MAX_THREAD) {
 					printf("Threads number should be a positive integer between 0 and %d\n", MAX_THREAD);
 					return EXIT_FAILURE;
 				}
