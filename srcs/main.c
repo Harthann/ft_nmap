@@ -293,7 +293,10 @@ int			main(int ac, char **av)
 	gettimeofday(&end, NULL);
 	long seconds = (end.tv_sec - start.tv_sec);
 	long micros = (((seconds * 1000000) + end.tv_usec) - (start.tv_usec)) / 1000000;
-	printf("%s done: %ld IP address scanned in %ld.%02ld seconds\n", prog_name, i, seconds, micros);
+	if (i > 1)
+		printf("%s done: %ld IP addresses scanned in %ld.%02ld seconds\n", prog_name, i, seconds, micros);
+	else
+		printf("%s done: %ld IP address scanned in %ld.%02ld seconds\n", prog_name, i, seconds, micros);
 
 	freeiplist(config.targets);
 	free(config.portrange);

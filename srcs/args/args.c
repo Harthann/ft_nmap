@@ -36,12 +36,20 @@ int	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 			break ;
 
 		case 1:
+			if (ft_optarg == NULL) {
+				fprintf(stderr, "%s: Missing argument for option %s\n", prog_name, option);
+				return EXIT_FAILURE;
+			}
 			config->targets = addip(config->targets, ft_optarg);
 			if (!config->targets)
 				return EXIT_FAILURE;
 			return EXIT_SUCCESS;
 
 		case 2: 
+			if (ft_optarg == NULL) {
+				fprintf(stderr, "%s: Missing argument for option %s\n", prog_name, option);
+				return EXIT_FAILURE;
+			}
 			return ipfromfile(config, ft_optarg);
 
 		case 3: // Ports option
@@ -82,6 +90,10 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				exit(0);
 
 			case 's':
+				if (ft_optarg == NULL) {
+					fprintf(stderr, "%s: Missing argument for option -%c\n", prog_name, c);
+					return EXIT_FAILURE;
+				}
 				if (!addscan(ft_optarg)) {
 					printf("Scan {%s} not known\n", ft_optarg);
 					print_help(options_descriptor);
@@ -90,6 +102,11 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				break ;
 
 			case 't':
+				if (ft_optarg == NULL) {
+					fprintf(stderr, "%s: Missing argument for option %c %s\n", prog_name, options_descriptor[option_index].shortcut, options_descriptor[option_index].option);
+					return EXIT_FAILURE;
+				}	
+
 				config->nb_threads = atoi(ft_optarg);
 				if (!is_numeric(ft_optarg) || config->nb_threads > MAX_THREAD) {
 					printf("Threads number should be a positive integer between 0 and %d\n", MAX_THREAD);
@@ -98,11 +115,16 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				break ;
 
 			case 'p':
+				if (ft_optarg == NULL) {
+					fprintf(stderr, "%s: Missing argument for option -%c\n", prog_name, c);
+					print_help(options_descriptor);
+					return EXIT_FAILURE;
+				}
+
 				if (create_range(ft_optarg, config) == EXIT_FAILURE)
 					return EXIT_FAILURE;
 				verbose |= SETUP_PORT;
 				break ;
-
 				
 			case '!':
 				if (parse_longoptions(option_index, av[ft_optind], config) == EXIT_FAILURE)

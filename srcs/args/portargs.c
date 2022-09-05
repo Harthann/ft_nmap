@@ -4,8 +4,11 @@ static inline int	find_nextsep(char *list)
 {
 	int i = 0;
 
-	while (list && list[i] && list[i] != ',')
+	while (list && list[i] && list[i] != ',') {
+		if ((list[i] < '0' || list[i] > '9') && (list[i] != '-' && list[i] != ','))
+			return -1;
 		i += 1;
+	}
 	return i;
 }
 
@@ -42,12 +45,20 @@ static int	addrange(char *list, uint32_t **portrange, uint32_t *length)
 	uint32_t	*range = NULL;
 	
 
-	start = atoi(list);
+	start = (*list == '-') ? 0 : atoi(list);
 	while (*list != '-')
 		list += 1;
-	end = atoi(list + 1);
+	list += 1;
+	end = atoi(list);
+	while (*list >= '0' && *list <= '9')
+		list += 1;
 
-	if (start < 0 || end < 0 || end < start) {
+	if (*(list) == '-') {
+		fprintf(stderr, "Error! Invalid range argument\n");
+		return EXIT_FAILURE;
+	}
+
+	if (start < 0 || end < 0 || end < start || start > MAX_PORT || end > MAX_PORT) {
 		fprintf(stderr,"Error! Invalid range {%d} {%d}\n", start, end);
 		return EXIT_FAILURE;
 	}
@@ -120,6 +131,10 @@ int	create_range(char *list, scanconf_t *config)
 			list += 1;
 
 		nextsep = find_nextsep(list);
+		if (nextsep < 0) {
+			fprintf(stderr, "Error! Invalid separator in ports range\n");
+			return EXIT_FAILURE;
+		}
 		if (isrange(list, nextsep)) {
 			if (addrange(list, &config->portrange, &config->nb_ports) == EXIT_FAILURE)
 				return EXIT_FAILURE;
