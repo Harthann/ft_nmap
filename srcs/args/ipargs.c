@@ -73,14 +73,13 @@ int		ipfromfile(scanconf_t *config, char *file)
 		return EXIT_FAILURE;
 	}
 	if (access(file, R_OK) < 0) {
-		fprintf(stderr, "%s: access(): %s\n", prog_name, strerror(errno));
+		fprintf(stderr, "%s: '%s': access(): %s\n", prog_name, file, strerror(errno));
 		return EXIT_FAILURE;
 	}
-	printf("ACCESS OK\n");
 	fd = fopen(file, "r");
 	if (!fd)
 	{
-		fprintf(stderr, "%s: fopen(): %s\n", prog_name, strerror(errno));
+		fprintf(stderr, "%s: '%s': fopen(): %s\n", prog_name, file, strerror(errno));
 		return EXIT_FAILURE;
 	}
 /*
