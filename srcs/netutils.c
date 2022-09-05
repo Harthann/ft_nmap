@@ -65,26 +65,21 @@ int			get_ipv4_addr(int *addr, char *name)
 */
 char		*resolve_hostname(char *hostname)
 {
-	struct addrinfo *res;
-	struct addrinfo hints;
-	char			*buffer;
+	struct hostent	*hostent;
 	char			*addr;
+	struct in_addr **addr_list;
 
 	addr = NULL;
-	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family = AF_INET;
-	if (!getaddrinfo(hostname, NULL, &hints, &res))
-	{
+	if ((hostent = gethostbyname(hostname))) {
+		addr_list = (struct in_addr **)hostent->h_addr_list;
+		if (hostent->h_addrtype == AF_INET6 || !addr_list || !(*addr_list))
+			return NULL;
 		addr = malloc(MAX_ADDR_SIZE);
-		if (!addr) {
-			freeaddrinfo(res);
-			return (NULL);
-		}
-		buffer = inet_ntoa(((struct sockaddr_in *)res->ai_addr)->sin_addr);
-		strcpy(addr, buffer);
-		freeaddrinfo(res);
+		if (!addr)
+			return NULL;
+		inet_ntop(AF_INET, *addr_list, addr, INET_ADDRSTRLEN);
 	}
-	return (addr);
+	return addr;
 }
 
 /*

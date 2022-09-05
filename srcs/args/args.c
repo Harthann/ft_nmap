@@ -22,7 +22,7 @@ struct s_optdesc options_descriptor[] = {
 	{"file",	ARGREQ, 0, 0, DESC_FILE},
 	{"ports",	ARGREQ, 0, 'p', DESC_PORTS},
 	{"scan",	ARGREQ, 0, 's', DESC_SCAN},
-	{"speedup",	ARGREQ, 0, 0, DESC_SPEED},
+	{"speedup",	ARGREQ, 0, 't', DESC_SPEED},
 	{"verbose", NO_ARG, &verbose, 'v', DESC_VERB},
 
 	{0, 0, 0, 0, 0}
@@ -103,6 +103,7 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 			case 'p':
 				if (create_range(ft_optarg, config) == EXIT_FAILURE)
 					return EXIT_FAILURE;
+				verbose |= SETUP_PORT;
 				break ;
 
 				
@@ -128,7 +129,7 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 	}
 	printf("Port(s): %d\n", config->nb_ports);
 	printf("Thread(s): %d\n", config->nb_threads);
-	if (verbose == 0 || verbose == 1)
+	if (!(verbose & 0x7e))
 		verbose |= SCAN_SYN | SCAN_NULL | SCAN_FIN | SCAN_XMAS | SCAN_ACK | SCAN_UDP;
 	printf("Scan(s) Type(s):");
 	if (verbose & SCAN_SYN)
