@@ -36,10 +36,18 @@ int	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 			break ;
 
 		case 1:
+			if (ft_optarg == NULL) {
+				fprintf(stderr, "%s: Missing argument for option %s\n", prog_name, option);
+				return EXIT_FAILURE;
+			}
 			config->targets = addip(config->targets, ft_optarg);
 			return EXIT_SUCCESS;
 
 		case 2: 
+			if (ft_optarg == NULL) {
+				fprintf(stderr, "%s: Missing argument for option %s\n", prog_name, option);
+				return EXIT_FAILURE;
+			}
 			ipfromfile(config, ft_optarg);
 			return EXIT_SUCCESS;
 
@@ -81,6 +89,10 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				exit(0);
 
 			case 's':
+				if (ft_optarg == NULL) {
+					fprintf(stderr, "%s: Missing argument for option -%c\n", prog_name, c);
+					return EXIT_FAILURE;
+				}
 				if (!addscan(ft_optarg)) {
 					printf("Scan {%s} not known\n", ft_optarg);
 					print_help(options_descriptor);
@@ -89,6 +101,10 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				break ;
 
 			case 't':
+				if (ft_optarg == NULL) {
+					fprintf(stderr, "%s: Missing argument for option -%c\n", prog_name, c);
+					return EXIT_FAILURE;
+				}	
 				if (!is_numeric(ft_optarg) || ft_optarg[0] == '-') {
 					printf("Threads number should be a positive integer between 0 and 255\n");
 					break;
@@ -101,11 +117,16 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 				break ;
 
 			case 'p':
+				if (ft_optarg == NULL) {
+					fprintf(stderr, "%s: Missing argument for option -%c\n", prog_name, c);
+					print_help(options_descriptor);
+					return EXIT_FAILURE;
+				}
+
 				if (create_range(ft_optarg, config) == EXIT_FAILURE)
 					return EXIT_FAILURE;
 				verbose |= SETUP_PORT;
 				break ;
-
 				
 			case '!':
 				if (parse_longoptions(option_index, av[ft_optind], config) == EXIT_FAILURE)
