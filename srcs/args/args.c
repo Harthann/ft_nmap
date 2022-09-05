@@ -20,7 +20,7 @@ struct s_optdesc options_descriptor[] = {
 	{"help",	NO_ARG, 0, 'h', DESC_HELP},
 	{"ip",		ARGREQ, 0, 0, DESC_IP},
 	{"file",	ARGREQ, 0, 0, DESC_FILE},
-	{"ports",	ARGREQ, 0, 0, DESC_PORTS},
+	{"ports",	ARGREQ, 0, 'p', DESC_PORTS},
 	{"scan",	ARGREQ, 0, 's', DESC_SCAN},
 	{"speedup",	ARGREQ, 0, 0, DESC_SPEED},
 	{"verbose", NO_ARG, &verbose, 'v', DESC_VERB},
@@ -43,16 +43,15 @@ int	parse_longoptions(int option_index, char *option, scanconf_t *config) {
 			ipfromfile(config, ft_optarg);
 			return EXIT_SUCCESS;
 
-		case 3:
-			if (create_range(ft_optarg, config) == EXIT_FAILURE)
-				break ;
+		case 3: // Ports option
+			// This option is handle using it's shorthand option
 			return EXIT_SUCCESS;
-
-		case 4:
+				
+		case 4: // Scan option
 			// This option is handle using it's shorthand option
 			return EXIT_SUCCESS;
 
-		case 5:
+		case 5: // speedup option
 			// This option is handle using it's shorthadn opion
 			return EXIT_SUCCESS;
 
@@ -100,6 +99,12 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 					return EXIT_FAILURE;
 				}
 				break ;
+
+			case 'p':
+				if (create_range(ft_optarg, config) == EXIT_FAILURE)
+					return EXIT_FAILURE;
+				break ;
+
 				
 			case '!':
 				if (parse_longoptions(option_index, av[ft_optind], config) == EXIT_FAILURE)
@@ -112,7 +117,6 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 	}
 	if (g_arglist == NULL && config->targets == NULL) {
 		printf("Error: Missing argument\n");
-		free(config->portrange);
 		print_help(options_descriptor);
 		return EXIT_FAILURE;
 	}
@@ -142,8 +146,7 @@ int			parse_arg(int ac, char **av, scanconf_t *config) {
 	printf("\n");
 	config->targets = appendlist(config->targets, g_arglist);
 
-	for(uint32_t i = 0; i < config->nb_ports; i++)
-		printf("%d ", config->portrange[i]);
-	printf("\n");
+	for(uint32_t i = config->nb_ports; i < 
+
 	return 0;
 }

@@ -1,117 +1,147 @@
 #include "args.h"
 
-static inline int	find_nextsep(char *list, int nextsep)
+static inline int	find_nextsep(char *list)
 {
-	while (list[nextsep] && (list[nextsep] != '-' && list[nextsep] != ','))
-			nextsep += 1;
-	return nextsep;
+	int i = 0;
+
+	while (list && list[i] && list[i] != ',')
+		i += 1;
+	return i;
 }
 
-int		isdup(uint32_t port, uint32_t *range, uint32_t length)
+static inline bool	isrange(char *list, int length)
 {
-	for(uint32_t i = 0; range && i < length; i++) {
+	for (int i = 0; i < length; i++) {
+		if (list[i] == '-')
+			return true;
+	}
+	return false;
+}
+
+/*
+** Look inside range if a port is already added
+*/
+static inline bool isdup(uint32_t port, uint32_t *range, uint32_t length)
+{
+	for (uint32_t i = 0; range && i < length; i++)
 		if (range[i] == port)
-			return 1;
-	}
-	return 0;
+			return true;
+	return false;
 }
 
-static int	count(int start, int end, uint32_t *range, uint32_t length)
+/*
+** Add multiple port to range form args
+** Format is start-end
+** If any number is missing it will ne interpreted as 0
+*/
+static int	addrange(char *list, uint32_t **portrange, uint32_t *length)
 {
-	int count = 0;
+	int		start;
+	int		end;
+	int		inc = 0;
+	uint32_t	*range = NULL;
+	
 
-	while (start != end) {
-		if (!isdup(start, range, length))
-			count += 1;
-		start += 1;
+	start = atoi(list);
+	while (*list != '-')
+		list += 1;
+	end = atoi(list + 1);
+
+	if (end < start) {
+		fprintf(stderr,"Error! Invalid backward range {%d} {%d}\n", start, end);
+		return EXIT_FAILURE;
 	}
-	return count;
+
+	for (int i = start; i < end; i++)
+		if (!isdup(i, *portrange, *length))
+			inc += 1;
+
+	range = calloc(sizeof(uint32_t), inc + *length);
+	if (!range) {
+		fprintf(stderr, "Error! Allocation failed\n");
+		return EXIT_FAILURE;
+	}
+	if (*portrange)
+		memcpy(range, *portrange, *length * sizeof(uint32_t));
+	for (int i = 0; i < inc; start += 1) {
+		if (!isdup(start, range, *length)) {
+			range[*length + i] = start;
+			i += 1;
+		}
+	}
+
+	free(*portrange);
+	*portrange = range;
+	*length += inc;
+
+	return EXIT_SUCCESS;
 }
 
-static int	addrange(int start, int end, scanconf_t *config)
+
+/*
+** Increase portrange length by one and append the new port at the end
+*/
+static int addport(char *list, uint32_t **portrange, uint32_t *length)
 {
-	uint32_t	*tmp = NULL;
-	uint32_t	inc = 0;
+	int		port;
+	uint32_t	*range;
 
-	if (start < 0 || end < 0 || start > MAX_PORT || end > MAX_PORT ) {
-		fprintf(stderr, "Error! Invalid port range\n");
+	port = atoi(list);
+
+	if (port > MAX_PORT) {
+		fprintf(stderr, "Error! Ports can't be higher than %d\n", MAX_PORT);
 		return EXIT_FAILURE;
 	}
+	if (isdup(port, *portrange, *length))
+		return EXIT_SUCCESS;
 
-	inc = count(start, end, config->portrange, config->nb_ports);
-	if (inc > 1024) {
-		fprintf(stderr, "Error! Portrange too big\n");
+	range = calloc(sizeof(uint32_t), *length + 1);
+	if (!range) {
+		fprintf(stderr, "Error! Allocation failed\n");
 		return EXIT_FAILURE;
 	}
+	if (*portrange)
+		memcpy(range, *portrange, *length * sizeof(uint32_t));
+	range[*length] = port;
 
-	config->nb_ports += inc;
-	tmp = calloc(sizeof(uint32_t), config->nb_ports);
-	if (!tmp) {
-		fprintf(stderr, "Error! Allocation failed for portrange\n");
-		return EXIT_FAILURE;
-	}
-
-	if (config->portrange) {
-		memcpy(tmp, config->portrange, sizeof(uint32_t) * (config->nb_ports - 1 - inc));
-		free(config->portrange);
-	}
-	config->portrange = tmp;
-	printf("Starting loop at: {%d}\n", config->portrange[config->nb_ports - inc - 1]);
-	for (uint32_t i = config->nb_ports - inc; i < config->nb_ports; i++) {
-		printf("{%d} {%d}\n", config->portrange[i], start);
-		if (!isdup(start, config->portrange, config->nb_ports - inc))
-			config->portrange[i] = start;
-		start += 1;
-	}
+	free(*portrange);
+	*portrange = range;
+	*length += 1;
 
 	return EXIT_SUCCESS;
 }
 
 int	create_range(char *list, scanconf_t *config)
 {
-	int			index = 0;
-	int			nextsep = 0;
-	uint32_t		*tmp = NULL;
-	uint32_t		newport;
+	uint32_t	*portrange = NULL;
+	uint32_t	length = 0;
 
-	while (list[index]) {
-		nextsep = find_nextsep(list, index);
-		if (list[nextsep] && list[nextsep] == '-') {
-		 	if (addrange(atoi(list + index), atoi(list + nextsep + 1), config) == EXIT_FAILURE) {
+	int		nextsep = 0;
+
+	(void)config;
+	while (list && *list) {
+		if (*list == ',')
+			list += 1;
+
+		nextsep = find_nextsep(list);
+		if (isrange(list, nextsep)) {
+			if (addrange(list, &portrange, &length) == EXIT_FAILURE)
 				goto reterror;
-			}
-			index = nextsep;
-			nextsep = find_nextsep(list, index + 1);
+		} else {
+			if (addport(list, &portrange, &length) == EXIT_FAILURE) 
+				goto reterror;
 		}
-		else {
-			newport = atoi(list + index);
-			if (!isdup(newport, config->portrange, config->nb_ports)) {
-				config->nb_ports += 1;
-				tmp = calloc(sizeof(uint32_t), config->nb_ports);
-				if (!tmp) {
-					fprintf(stderr, "Error! Allocation failed for portrange\n");
-					goto reterror;
-				}
-				if (config->portrange) {
-					memcpy(tmp, config->portrange, sizeof(uint32_t) * (config->nb_ports - 1));
-					free(config->portrange);
-				}
-				config->portrange = tmp;
-				if (newport > MAX_PORT) {
-					fprintf(stderr, "Error! Invalid port {%d}\n", newport);
-					goto reterror;
-				}
-				config->portrange[config->nb_ports - 1] = newport;
-			}
-		}
-		if (!list[nextsep])
-			break;
-		index = nextsep + 1;
+		printf("{%s} {%d}\n", list, nextsep);
+
+		list += nextsep;
 	}
+
+	config->portrange = portrange;
+	config->nb_ports = length;
 	return EXIT_SUCCESS;
 
 reterror:
-	free(config->portrange);
-	config->portrange = NULL;
+	free(portrange);
 	return EXIT_FAILURE;
 }
+
