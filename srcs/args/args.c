@@ -22,7 +22,7 @@ struct s_optdesc options_descriptor[] = {
 	{"file",	ARGREQ, 0, 0, DESC_FILE},
 	{"ports",	ARGREQ, 0, 0, DESC_PORTS},
 	{"scan",	ARGREQ, 0, 's', DESC_SCAN},
-	{"speedup",	ARGREQ, 0, 0, DESC_SPEED},
+	{"speedup",	ARGREQ, 0, 't', DESC_SPEED},
 	{"verbose", NO_ARG, &verbose, 'v', DESC_VERB},
 
 	{0, 0, 0, 0, 0}
