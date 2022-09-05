@@ -1,6 +1,8 @@
 # ft_nmap
 Reproduction of nmap command
 
+![example](img/example.png)
+
 ## Usage
 
 ```
