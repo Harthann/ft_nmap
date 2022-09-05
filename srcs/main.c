@@ -107,10 +107,7 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 			close(socks.sockfd_udp);
 		return ;
 	}
-	printf("Scanning %s", target);
-	if (strcmp(target, target_ip))
-		printf(" (%s)", target_ip);
-	printf("...\n");
+	printf("Scanning %s (%s) ...\n", target, target_ip);
 	inet_pton(AF_INET, target_ip, &iphdr.daddr);
 	sockaddr.sin_addr.s_addr = iphdr.daddr;
 
