@@ -81,6 +81,7 @@ void	ipfromfile(scanconf_t *config, char *file)
 		return ;
 
 	config->targets = appendlist(config->targets, lines);
+	fclose(fd);
 	free(buffer);
 }
 
