@@ -1,9 +1,9 @@
 #include "ft_nmap.h"
 #include "args.h"
 
-int		should_print(uint8_t flags, int max_flag)
+int		should_print(uint8_t flags, int max_flag, int max_value)
 {
-	if ((flags != max_flag) || (verbose & SETUP_PORT))
+	if ((flags != max_flag) || ((verbose & SETUP_PORT) && (max_value <= 25)))
 		return 1;
 	return 0;
 }
@@ -28,7 +28,7 @@ void	print_report(t_port_status *ports, uint32_t nb_ports, char *type)
 		}
 	}
 
-	if (!(verbose & SETUP_PORT))
+	if (!(verbose & SETUP_PORT) || max_value > 25)
 	{
 		printf("Not shown: %d %s ", max_value, type);
 		if (max_flag & SET_ACCESS) {
@@ -44,7 +44,7 @@ void	print_report(t_port_status *ports, uint32_t nb_ports, char *type)
 	printf("PORT      STATUS            SERVICE\n");
 	for (uint32_t i = 0; i < nb_ports; i++)
 	{
-		if (should_print(ports[i].flags, max_flag)) {//(ports[i].flags & SET_ACCESS || ports[i].flags & SET_FILTER) {
+		if (should_print(ports[i].flags, max_flag, max_value)) {//(ports[i].flags & SET_ACCESS || ports[i].flags & SET_FILTER) {
 			int		n = 0;
 			int		m = 0;
 
@@ -64,7 +64,6 @@ void	print_report(t_port_status *ports, uint32_t nb_ports, char *type)
 				}
 				printf("%s%n", ports[i].flags & FILTERED ? "filtered" : "unfiltered", &m);
 				n += m;
-//				printf("\nn: %d\n", n);
 			}
 
 			printf("%*c", 18 - n, ' ');
