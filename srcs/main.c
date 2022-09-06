@@ -210,7 +210,7 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 		}
 	}
 
-	printf("%s scan report for %s (%s)\n", prog_name, target, target_ip);
+	printf("%s scan report for %s (%s)\n", PROG_NAME, target, target_ip);
 	if (verbose & 0x3f)
 	{
 		print_report(final_report, config->nb_ports, "tcp");
@@ -297,9 +297,9 @@ int			main(int ac, char **av)
 	long seconds = (end.tv_sec - start.tv_sec);
 	long micros = (((seconds * 1000000) + end.tv_usec) - (start.tv_usec)) / 1000000;
 	if (i > 1)
-		printf("%s done: %ld IP addresses scanned in %ld.%02ld seconds\n", prog_name, i, seconds, micros);
+		printf("%s done: %ld IP addresses scanned in %ld.%02ld seconds\n", PROG_NAME, i, seconds, micros);
 	else
-		printf("%s done: %ld IP address scanned in %ld.%02ld seconds\n", prog_name, i, seconds, micros);
+		printf("%s done: %ld IP address scanned in %ld.%02ld seconds\n", PROG_NAME, i, seconds, micros);
 
 	freeiplist(config.targets);
 	free(config.portrange);

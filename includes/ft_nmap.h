@@ -38,7 +38,7 @@
 
 /*=== DEFINES ===*/
 # define PROG_NAME		"ft_nmap"
-# define VERSION		"alpha 0.1"
+# define VERSION		"1.0"
 
 # define MAX_TTL		255
 # define DATA_LEN		0
