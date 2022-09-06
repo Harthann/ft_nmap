@@ -1,5 +1,4 @@
 #include "parser.h"
-#include <stdio.h>
 
 /*
 ** Argument list found along the way 
@@ -90,7 +89,8 @@ static char grow_arglist(char **av, int *nexti, int *nextj)
 
 	tmp = malloc((arglist_len + 1) * sizeof(char*));
 	if (!tmp) {
-		// TODO ERROR
+		fprintf(stderr, "%s: malloc(): %s\n", prog_name, strerror(errno));
+		return '\0';
 	}
 	memset(tmp, 0, (arglist_len + 1) * sizeof(char*));
 

@@ -1,17 +1,22 @@
 #ifndef PARSER_H
 # define PARSER_H
 
+#include <errno.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
 #define ARGREQ true
 #define NO_ARG false
 
+extern char		*prog_name;
+
 extern int		ft_optind;
 extern char		ft_optopt;
 extern char		*ft_optarg;
 extern char		**g_arglist;
+
 
 struct s_optdesc {
 	char *option;

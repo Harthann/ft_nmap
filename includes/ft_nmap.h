@@ -84,7 +84,6 @@ typedef struct	s_port_status {
 /*
 ** Storage struct to keep track of each tcp packet sended
 */
-// TODO: add scan type ?
 struct scan_s {
 	void			*packet;
 	struct scan_s	*next;

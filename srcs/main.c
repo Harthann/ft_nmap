@@ -250,7 +250,7 @@ int			main(int ac, char **av)
 		.targets = NULL,
 		.portrange = NULL,
 		.nb_threads = 0,
-		.timeout = 1, // TODO: ping to know how many
+		.timeout = 1 // default
 	};
 
 	/*

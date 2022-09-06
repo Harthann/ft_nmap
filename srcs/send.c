@@ -5,12 +5,11 @@ int				thread_send(int sockfd, struct sockaddr_in * sockaddr, struct iphdr *iphd
 	pthread_t		*threadid;
 
 	threadid = malloc(sizeof(pthread_t) * nb_threads);
-	if (!threadid) // TODO: problem + free
+	if (!threadid)
 	{
 		fprintf(stderr, "%s: malloc: %s\n", prog_name, strerror(errno));
 		return EXIT_FAILURE;
 	}
-	//int test = port_end / 2;
 	int			handled_ports = 0;
 	t_args_send *args;
 	int i = 0;
@@ -35,7 +34,17 @@ int				thread_send(int sockfd, struct sockaddr_in * sockaddr, struct iphdr *iphd
 		args->flags = flags;
 		handled_ports += args->nb_ports;
 		if (nb_threads)
-			pthread_create(&threadid[i], NULL, fn, args); // TODO: check return
+		{
+			if (pthread_create(&threadid[i], NULL, fn, args))
+			{
+				fprintf(stderr, "%s: pthread_create(): error\n", prog_name);
+				nb_threads = i;
+				for (;i > 0; --i)
+					pthread_join(threadid[nb_threads - i], NULL);
+				free(threadid);
+				return EXIT_FAILURE ;
+			}
+		}
 		else
 			fn(args);
 	}
@@ -43,7 +52,7 @@ int				thread_send(int sockfd, struct sockaddr_in * sockaddr, struct iphdr *iphd
 	{
 		nb_threads = i;
 		for (;i > 0; --i)
-			pthread_join(threadid[nb_threads - i], NULL); // TODO: check return
+			pthread_join(threadid[nb_threads - i], NULL);
 	}
 	free(threadid);
 	return EXIT_SUCCESS;
