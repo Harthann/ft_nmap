@@ -108,7 +108,6 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 			close(socks.sockfd_udp);
 		return ;
 	}
-	printf("Scanning %s (%s) ...\n", target, target_ip);
 	inet_pton(AF_INET, target_ip, &iphdr.daddr);
 	sockaddr.sin_addr.s_addr = iphdr.daddr;
 
@@ -144,6 +143,8 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 		net = 0;
 		mask = 0;
 	}
+	printf("Scanning %s (%s).", target, target_ip);
+	fflush(stdout);
 // ==> SCANNING <==
 	t_scans			scans[MAX_SCANS] = {
 		{scan_syn, NULL},
@@ -217,6 +218,8 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 	}
 	if (verbose & SCAN_UDP)
 		print_report(scans[N_UDP_SCAN].ports, config->nb_ports, "udp");
+
+	printf("\n");
 
 	for (int i = 0; i < MAX_SCANS; i++)
 		free(scans[i].ports);
