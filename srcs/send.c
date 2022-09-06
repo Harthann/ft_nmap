@@ -83,7 +83,7 @@ void		*send_tcp4_packets(void *args)
 				ret = send_tcp4(send->sockfd, send->sockaddr, send->iphdr, send->portrange[i++].port, send->flags);
 				if (ret == -ENOMEM)
 					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
-				else if (ret == EXIT_FAILURE)
+				else if (ret == EXIT_FAILURE && errno != EACCES)
 					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
 			}
 			else if (i >= send->nb_ports && fds[0].revents & POLLOUT)
@@ -121,7 +121,7 @@ void		*send_udp4_packets(void *args)
 				ret = send_udp4(send->sockfd, send->sockaddr, send->iphdr, send->portrange[i++].port);
 				if (ret == -ENOMEM)
 					fprintf(stderr, "%s: calloc: %s\n", prog_name, strerror(errno));
-				else if (ret == EXIT_FAILURE)
+				else if (ret == EXIT_FAILURE && errno != EACCES)
 					fprintf(stderr, "%s: sendto: %s\n", prog_name, strerror(errno));
 			}
 			else if (i >= send->nb_ports && fds[0].revents & POLLOUT)
