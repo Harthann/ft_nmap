@@ -144,7 +144,10 @@ init_socket(&socks.sockfd_udp, IPPROTO_UDP) == EXIT_FAILURE)
 		mask = 0;
 	}
 	printf("Scanning %s (%s).", target, target_ip);
-	fflush(stdout);
+	if (verbose & VERBOSITY)
+		printf("\n");
+	else
+		fflush(stdout);
 // ==> SCANNING <==
 	t_scans			scans[MAX_SCANS] = {
 		{scan_syn, NULL},
