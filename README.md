@@ -1,5 +1,5 @@
 # ft_nmap
-Reproduction of nmap command
+Our own nmap implementation o/
 
 ![example](img/example.png)
 
